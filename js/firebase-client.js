@@ -271,12 +271,37 @@ async function sendGroupMessage(groupId, message) {
   });
 }
 
+
+/* ===== Catalog price overrides (Firestore) ===== */
+const CATALOG_PRICES_REF = doc(db, 'catalog_prices', 'overrides');
+
+async function fetchPriceOverrides() {
+  try {
+    const snap = await getDoc(CATALOG_PRICES_REF);
+    return snap.exists() ? (snap.data().prices || {}) : {};
+  } catch (e) {
+    console.warn('[Luciole] Prix hors-ligne, utilisation du cache local :', e.message);
+    return {};
+  }
+}
+
+async function savePriceOverride(productId, price) {
+  await setDoc(CATALOG_PRICES_REF, { prices: { [String(productId)]: Number(price) } }, { merge: true });
+}
+
+async function deleteAllPriceOverrides(prices) {
+  await setDoc(CATALOG_PRICES_REF, { prices }, { merge: false });
+}
+
 window.FirebaseClient = {
   firebaseApp,
   auth,
   db,
   signInWithGoogle,
   signInWithEmail,
+  fetchPriceOverrides,
+  savePriceOverride,
+  deleteAllPriceOverrides,
   resetPassword,
   signOut,
   createContributionGroup,

@@ -1412,6 +1412,7 @@ section {
 .footer-bottom {
   border-top: 1px solid rgba(255,255,255,0.1);
   padding-top: 24px;
+  padding-bottom: 80px;
   text-align: center;
   font-size: 0.85rem;
   opacity: 0.6;
@@ -2481,7 +2482,8 @@ img {
   .floating-whatsapp {
     width: 54px;
     height: 54px;
-    right: max(16px, env(safe-area-inset-right));
+    right: auto;
+    left: max(16px, env(safe-area-inset-left));
     bottom: max(16px, env(safe-area-inset-bottom));
   }
 }

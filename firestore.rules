@@ -50,6 +50,11 @@ service cloud.firestore {
         && request.resource.data.inviteCode == inviteCode;
       allow update, delete: if isGeneralAdmin() || (signedIn() && resource.data.creatorId == request.auth.uid);
     }
+    // Prix du catalogue — lecture publique, écriture protégée par le mot de passe admin côté UI
+    match /catalog_prices/{doc} {
+      allow read: if true;
+      allow write: if true;
+    }
     match /{document=**} { allow read, write: if false; }
   }
 }

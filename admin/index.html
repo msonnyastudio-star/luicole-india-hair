@@ -379,6 +379,11 @@
               <textarea id="pVariants" placeholder="10 pouces | 45000&#10;12 pouces | 55000&#10;14 pouces | 65000"></textarea>
               <small>Taille puis prix FCFA, séparés par <strong>|</strong>. Exemple : <strong>20 pouces | 85000</strong>. Laissez le prix vide pour le confirmer plus tard.</small>
             </div>
+            <div class="adm-form-group" style="background:var(--adm-petal);border-radius:12px;padding:16px;border:2px solid var(--adm-rose);">
+              <label style="color:var(--adm-plum);font-size:0.95rem;">💰 Prix catalogue (FCFA)</label>
+              <input type="number" id="pReferencePrice" min="0" step="100" placeholder="Ex. 85000" style="font-size:1.05rem;font-weight:700;border-color:var(--adm-rose);">
+              <small>Ce prix s'affiche <strong>immédiatement sur le site</strong> pour tous les visiteurs (synchronisé via Firestore). Vous pouvez aussi mettre des prix par taille dans le champ ci-dessus.</small>
+            </div>
             <div class="adm-form-group full">
               <label>Description</label>
               <textarea id="pDescription"></textarea>
@@ -422,7 +427,7 @@
                 <th>Photo</th>
                 <th>Produit</th>
                 <th>Catégorie</th>
-                <th>Prix min</th>
+                <th>Prix catalogue</th>
                 <th>Badge</th>
                 <th>Actions</th>
               </tr>
@@ -464,9 +469,90 @@
       localStorage.setItem('luciole_catalog_version', CATALOG_VERSION);
     }
 
+    /* ===== Firestore price sync (REST API — pas besoin du SDK) ===== */
+    const FIRESTORE_PROJECT = 'luciole-india-hair-2911c';
+    const PRICES_URL = `https://firestore.googleapis.com/v1/projects/${FIRESTORE_PROJECT}/databases/(default)/documents/catalog_prices/overrides`;
+
+    async function fetchFirestorePrices() {
+      try {
+        const response = await fetch(PRICES_URL);
+        if (!response.ok) return {};
+        const data = await response.json();
+        const fields = data?.fields?.prices?.mapValue?.fields || {};
+        const result = {};
+        for (const [key, val] of Object.entries(fields)) {
+          result[key] = Number(val.integerValue || val.doubleValue || 0);
+        }
+        return result;
+      } catch (e) {
+        return {};
+      }
+    }
+
+    async function patchFirestorePrice(productId, price) {
+      const body = {
+        fields: {
+          prices: {
+            mapValue: {
+              fields: {
+                [String(productId)]: { integerValue: String(Math.round(Number(price))) }
+              }
+            }
+          }
+        }
+      };
+      try {
+        await fetch(`${PRICES_URL}?updateMask.fieldPaths=prices.${productId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+      } catch (e) {
+        console.warn('Erreur Firestore prix :', e.message);
+      }
+    }
+
+    function savePriceInline(productId, rawPrice) {
+      const price = Math.max(0, Math.round(Number(rawPrice) || 0));
+      const idx = products.findIndex(p => p.id === productId);
+      if (idx === -1) return;
+      products[idx].referencePrice = price;
+      products[idx].lengths.forEach(variant => {
+        if (!variant.price || variant.price === 0) variant.price = price;
+      });
+      saveProducts();
+      patchFirestorePrice(productId, price).then(() => {
+        const input = document.querySelector(`.adm-inline-price[data-product-id="${productId}"]`);
+        if (input) {
+          input.style.borderColor = '#1a7a47';
+          setTimeout(() => { input.style.borderColor = ''; }, 1200);
+        }
+      });
+    }
+
+    async function loadAndShowFirestorePrices() {
+      const overrides = await fetchFirestorePrices();
+      for (const [idStr, price] of Object.entries(overrides)) {
+        const id = Number(idStr);
+        const idx = products.findIndex(p => p.id === id);
+        if (idx !== -1 && price > 0) {
+          products[idx].referencePrice = price;
+        }
+      }
+      saveProducts();
+      renderAdminTable();
+    }
+
     function priceLabel(price) {
       const amount = Number(price);
       return amount > 0 ? `${new Intl.NumberFormat('fr-FR').format(amount)} FCFA` : 'À renseigner';
+    }
+
+    function getProductMinPrice(product) {
+      const variantPrices = (product.lengths || []).map(length => Number(length.price)).filter(price => price > 0);
+      const referencePrice = Number(product.referencePrice) > 0 ? Number(product.referencePrice) : 0;
+      const candidatePrices = variantPrices.length ? variantPrices : (referencePrice > 0 ? [referencePrice] : []);
+      return candidatePrices.length ? Math.min(...candidatePrices) : 0;
     }
 
     function parseVariants(input) {
@@ -492,7 +578,7 @@
       if (pass === ADMIN_PASS) {
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('adminPanel').classList.add('active');
-        renderAdminTable();
+        loadAndShowFirestorePrices();
         updateStats();
       } else {
         document.getElementById('adminPassword').style.borderColor = '#e63946';
@@ -517,14 +603,24 @@
     function renderAdminTable() {
       const tbody = document.getElementById('adminTableBody');
       tbody.innerHTML = products.map(p => {
-        const priced = p.lengths.map(l => Number(l.price)).filter(price => price > 0);
-        const minPrice = priced.length ? Math.min(...priced) : 0;
+        const variantPrices = p.lengths.map(l => Number(l.price)).filter(price => price > 0);
+        const refPrice = Number(p.referencePrice) > 0 ? Number(p.referencePrice) : 0;
+        const displayPrice = variantPrices.length ? Math.min(...variantPrices) : refPrice;
         return `
           <tr>
             <td><img src="../${p.images[0]}" class="adm-thumb" onerror="this.src='../images/hair-straight.jpg'" alt="${p.name}"></td>
             <td><div class="adm-product-name">${p.name}</div><div class="adm-product-id">#${p.id}</div></td>
             <td>${p.category}</td>
-            <td style="font-weight:600;color:var(--adm-berry);">${priceLabel(minPrice)}</td>
+            <td>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <input type="number" class="adm-inline-price" data-product-id="${p.id}"
+                  value="${displayPrice || ''}" placeholder="0" min="0" step="100"
+                  style="width:115px;padding:7px 10px;border:1.5px solid var(--adm-border);border-radius:8px;font-size:0.88rem;font-family:inherit;outline:none;font-weight:600;"
+                  onchange="savePriceInline(${p.id}, this.value)"
+                  title="Tapez le prix puis appuyez sur Entrée ou cliquez ailleurs">
+                <span style="font-size:0.7rem;color:var(--adm-gray);">FCFA</span>
+              </div>
+            </td>
             <td>${badgeHtml(p.badge)}</td>
             <td>
               <div class="adm-row-actions">
@@ -562,6 +658,7 @@
         delivery: '3-7 jours selon la ville',
         availability: document.getElementById('pAvailability').value,
         badge: document.getElementById('pBadge').value || null,
+        referencePrice: Number(document.getElementById('pReferencePrice').value) || 0,
         images: images.length ? images : ['images/catalogue/modele-2.jpg'],
         promo: document.getElementById('pBadge').value === 'promo',
         promoPrice: null
@@ -617,6 +714,7 @@
       document.getElementById('pVariants').value = '';
       document.getElementById('pImages').value = '';
       document.getElementById('pBadge').value = '';
+      document.getElementById('pReferencePrice').value = '';
     }
   </script>
 </body>

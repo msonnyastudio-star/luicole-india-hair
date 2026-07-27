@@ -25,6 +25,7 @@ function catalogueProduct({ id, name, texture, color, lengths, photo, descriptio
     delivery: 'Délai confirmé sur WhatsApp selon votre ville',
     availability: 'Prix à confirmer',
     badge,
+    referencePrice: 0,
     images: [photo],
     promo: false,
     promoPrice: null

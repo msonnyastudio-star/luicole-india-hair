@@ -35,6 +35,73 @@ let selectedLength = null;
 let selectedQty = 1;
 let lastFocusedElement = null;
 
+function getProductReferencePrice(product) {
+  const numericPrice = Number(product?.referencePrice);
+  return Number.isFinite(numericPrice) && numericPrice > 0 ? numericPrice : 0;
+}
+
+function getEffectivePrice(product, variant = null) {
+  if (!product) return 0;
+  if (product.promo && Number(product.promoPrice) > 0) return Number(product.promoPrice);
+  if (variant && Number(variant.price) > 0) return Number(variant.price);
+  return getProductReferencePrice(product);
+}
+
+function getProductMinPrice(product) {
+  const variantPrices = (product?.lengths || []).map(length => Number(length.price)).filter(price => price > 0);
+  const referencePrice = getProductReferencePrice(product);
+  const candidates = variantPrices.length ? variantPrices : (referencePrice > 0 ? [referencePrice] : []);
+  return candidates.length ? Math.min(...candidates) : 0;
+}
+
+function buildProductShareUrl(productId) {
+  const url = new URL(window.location.href);
+  url.searchParams.set('product', String(productId));
+  url.hash = '';
+  return url.toString();
+}
+
+function updateProductShareMeta(product) {
+  const origin = window.location.origin || 'https://lucioleindiahair.com';
+  const title = product ? `${product.name} | ${SITE_NAME}` : `${SITE_NAME} | Greffes, Mèches & Perruques Premium`;
+  const description = product ? `${product.name} • ${product.category} • ${product.texture} • ${product.color}` : 'Découvrez nos greffes, mèches, closures, frontals et perruques premium au Cameroun.';
+  const imagePath = product?.images?.[0] || 'images/logo-luciole.png';
+  const imageUrl = new URL(imagePath, `${origin}${window.location.pathname}`).toString();
+
+  document.title = title;
+  const metaDescription = document.querySelector('meta[name="description"]');
+  if (metaDescription) metaDescription.setAttribute('content', description);
+  const ogTitle = document.querySelector('meta[property="og:title"]');
+  if (ogTitle) ogTitle.setAttribute('content', title);
+  const ogDescription = document.querySelector('meta[property="og:description"]');
+  if (ogDescription) ogDescription.setAttribute('content', description);
+  const ogImage = document.querySelector('meta[property="og:image"]');
+  if (ogImage) ogImage.setAttribute('content', imageUrl);
+  const twitterTitle = document.querySelector('meta[name="twitter:title"]');
+  if (twitterTitle) twitterTitle.setAttribute('content', title);
+  const twitterDescription = document.querySelector('meta[name="twitter:description"]');
+  if (twitterDescription) twitterDescription.setAttribute('content', description);
+  const twitterImage = document.querySelector('meta[name="twitter:image"]');
+  if (twitterImage) twitterImage.setAttribute('content', imageUrl);
+}
+
+function updateProductUrl(productId) {
+  const url = new URL(window.location.href);
+  if (productId) {
+    url.searchParams.set('product', String(productId));
+  } else {
+    url.searchParams.delete('product');
+  }
+  window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+}
+
+function openProductFromQuery() {
+  const params = new URLSearchParams(window.location.search);
+  const productId = Number(params.get('product'));
+  if (!Number.isFinite(productId) || productId <= 0) return;
+  window.setTimeout(() => openProductModal(productId), 0);
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
   renderCategories();
@@ -44,7 +111,35 @@ document.addEventListener('DOMContentLoaded', () => {
   updateCartUI();
   setupEventListeners();
   setupNavbarScroll();
+  updateProductShareMeta();
+  openProductFromQuery();
+  applyFirestorePrices();
 });
+
+async function applyFirestorePrices() {
+  try {
+    const client = window.FirebaseClient;
+    if (!client || typeof client.fetchPriceOverrides !== 'function') return;
+    const overrides = await client.fetchPriceOverrides();
+    if (!overrides || !Object.keys(overrides).length) return;
+    let changed = false;
+    PRODUCTS_DATA.forEach(product => {
+      const price = overrides[String(product.id)];
+      if (typeof price === 'number' && price > 0 && product.referencePrice !== price) {
+        product.referencePrice = price;
+        product.lengths.forEach(variant => {
+          if (!variant.price || variant.price === 0) variant.price = price;
+        });
+        changed = true;
+      }
+    });
+    if (changed) {
+      renderProducts(PRODUCTS_DATA);
+    }
+  } catch (e) {
+    console.warn('[Luciole] applyFirestorePrices :', e.message);
+  }
+}
 
 function setupNavbarScroll() {
   const navbar = document.querySelector('.navbar');
@@ -214,7 +309,7 @@ function renderProducts(products) {
   }
   grid.innerHTML = products.map(rawProduct => {
     const p = localizeProduct(rawProduct);
-    const minPrice = Math.min(...p.lengths.map(l => l.price));
+    const minPrice = getProductMinPrice(p);
     const displayPrice = p.promo && p.promoPrice ? p.promoPrice : minPrice;
     const badgeHtml = p.badge ? `<span class="product-badge badge-${p.badge}">${
       p.badge === 'nouveau' ? tr('badge-new', 'Nouveau') :
@@ -277,9 +372,8 @@ function filterProducts() {
     
     let matchPrice = true;
     if (price) {
-      const pricedLengths = p.lengths.map(l => l.price).filter(value => Number(value) > 0);
-      if (!pricedLengths.length) return false;
-      const minP = Math.min(...pricedLengths);
+      const minP = getProductMinPrice(p);
+      if (!Number(minP)) return false;
       if (price === '0-30000') matchPrice = minP <= 30000;
       else if (price === '30000-50000') matchPrice = minP > 30000 && minP <= 50000;
       else if (price === '50000-100000') matchPrice = minP > 50000 && minP <= 100000;
@@ -309,9 +403,7 @@ function openProductModal(id) {
   const modal = document.getElementById('productModal');
   const body = document.getElementById('modalBody');
 
-  const price = currentProduct.promo && currentProduct.promoPrice 
-    ? currentProduct.promoPrice 
-    : selectedLength.price;
+  const price = getEffectivePrice(currentProduct, selectedLength);
 
   body.innerHTML = `
     <div class="modal-gallery">
@@ -377,12 +469,15 @@ function openProductModal(id) {
 
   modal.classList.add('active');
   document.body.style.overflow = 'hidden';
+  updateProductShareMeta(currentProduct);
+  updateProductUrl(currentProduct.id);
 }
 
 function closeModal() {
   document.getElementById('productModal').classList.remove('active');
   document.body.style.overflow = '';
   currentProduct = null;
+  updateProductUrl(null);
 }
 
 function changeMainImg(src, el) {
@@ -406,9 +501,7 @@ function changeQty(delta) {
 
 function updateModalPrice() {
   if (!currentProduct || !selectedLength) return;
-  const unitPrice = currentProduct.promo && currentProduct.promoPrice 
-    ? currentProduct.promoPrice 
-    : selectedLength.price;
+  const unitPrice = getEffectivePrice(currentProduct, selectedLength);
   const total = unitPrice * selectedQty;
   document.getElementById('modalPrice').textContent = formatPrice(total) + (selectedQty > 1 ? ` (${selectedQty} × ${formatPrice(unitPrice)})` : '');
 }
@@ -417,9 +510,7 @@ function updateModalPrice() {
 function addToCart() {
   if (!currentProduct || !selectedLength) return;
 
-  const unitPrice = currentProduct.promo && currentProduct.promoPrice 
-    ? currentProduct.promoPrice 
-    : selectedLength.price;
+  const unitPrice = getEffectivePrice(currentProduct, selectedLength);
 
   if (!Number(unitPrice)) {
     showToast(tr('price-size-confirm', 'Le prix de cette taille est à confirmer sur WhatsApp.'));
@@ -544,8 +635,9 @@ function getWhatsAppUrl(message) {
 function quickWhatsApp(id) {
   const product = localizeProduct(PRODUCTS_DATA.find(p => p.id === id));
   if (!product) return;
-  const minPrice = Math.min(...product.lengths.map(l => l.price));
+  const minPrice = getProductMinPrice(product);
   const price = product.promo && product.promoPrice ? product.promoPrice : minPrice;
+  const shareUrl = buildProductShareUrl(product.id);
   const msg = currentLang === 'en'
     ? `Hello ${SITE_NAME}, I would like more information or to order this product.
 
@@ -554,6 +646,7 @@ function quickWhatsApp(id) {
 🔢 Quantity: 1
 💰 Price: ${formatPrice(price)}
 🔗 Ref: #${product.id}
+🔗 View product: ${shareUrl}
 
 Thank you!`
     : `Bonjour ${SITE_NAME}, je souhaite avoir plus d'informations ou passer une commande pour ce produit.
@@ -563,6 +656,7 @@ Thank you!`
 🔢 Quantité : 1
 💰 Prix : ${formatPrice(price)}
 🔗 Réf : #${product.id}
+🔗 Voir le produit : ${shareUrl}
 
 Merci !`;
   window.open(getWhatsAppUrl(msg), '_blank');
@@ -570,12 +664,11 @@ Merci !`;
 
 function orderOnWhatsApp() {
   if (!currentProduct || !selectedLength) return;
-  const unitPrice = currentProduct.promo && currentProduct.promoPrice 
-    ? currentProduct.promoPrice 
-    : selectedLength.price;
+  const unitPrice = getEffectivePrice(currentProduct, selectedLength);
   const total = unitPrice * selectedQty;
   const priceText = Number(unitPrice) ? formatPrice(unitPrice) : tr('price-confirm', 'Prix à confirmer');
   const totalText = Number(unitPrice) ? formatPrice(total) : tr('price-confirm', 'Prix à confirmer');
+  const shareUrl = buildProductShareUrl(currentProduct.id);
 
   const msg = currentLang === 'en' ? `Hello ${SITE_NAME}, I would like more information or to order this product.
 
@@ -585,6 +678,7 @@ function orderOnWhatsApp() {
 💰 Unit price: ${priceText}
 💵 Total amount: ${totalText}
 🔗 Ref: #${currentProduct.id}
+🔗 View product: ${shareUrl}
 
 Thank you!` : `Bonjour ${SITE_NAME}, je souhaite avoir plus d'informations ou passer une commande pour ce produit.
 
@@ -594,6 +688,7 @@ Thank you!` : `Bonjour ${SITE_NAME}, je souhaite avoir plus d'informations ou pa
 💰 Prix unitaire : ${priceText}
 💵 Montant total : ${totalText}
 🔗 Réf : #${currentProduct.id}
+🔗 Voir le produit : ${shareUrl}
 
 Merci !`;
   window.open(getWhatsAppUrl(msg), '_blank');
@@ -601,9 +696,7 @@ Merci !`;
 
 function openGroupPurchase() {
   if (!currentProduct || !selectedLength) return;
-  const price = currentProduct.promo && currentProduct.promoPrice
-    ? currentProduct.promoPrice
-    : selectedLength.price;
+  const price = getEffectivePrice(currentProduct, selectedLength);
   if (!Number(price)) {
     showToast(tr('group-price-needed', 'Renseignez le prix de cette taille dans l’administration avant de créer un groupe.'));
     return;
@@ -791,8 +884,8 @@ const translations = {
     "nav-promo": "Promotions",
     "nav-delivery": "Livraison",
     "nav-about": "À propos",
-    "hero-title": "La beauté commence par des cheveux d'exception",
-    "hero-sub": "Découvrez notre sélection de greffes, mèches et perruques premium. Livraison partout au Cameroun.",
+    "hero-title": "Des greffes, mèches et perruques premium pour un look naturel",
+    "hero-sub": "Découvrez nos greffes, mèches, closures, frontals et perruques premium. Livraison partout au Cameroun.",
     "btn-discover": "Découvrir nos collections",
     "btn-order-wa": "Commander sur WhatsApp",
     "adv1": "Cheveux de qualité premium",
@@ -802,8 +895,8 @@ const translations = {
     "adv5": "Produits pour tous les styles",
     "nav-groups": "Achats en groupe",
     "video-eyebrow": "En mouvement",
-    "video-title": "Nos modèles en vidéo",
-    "video-sub": "Voyez le volume, la brillance et le mouvement de nos styles avant de choisir votre coup de cœur.",
+    "video-title": "Nos styles en vidéo",
+    "video-sub": "Voyez le volume, la brillance et le mouvement de nos greffes et perruques avant de choisir votre coup de cœur.",
     "video-catalog": "Voir le catalogue",
     "video-unsupported": "Votre navigateur ne peut pas lire cette vidéo.",
     "video-label": "Look en vidéo",
@@ -829,8 +922,8 @@ const translations = {
     "textures-sub": "Lisse, bouclé, body wave ou bob : explorez les textures selon votre envie du jour.",
     "cat-title": "Nos Catégories",
     "cat-sub": "Explorez notre gamme complète de cheveux premium pour tous les styles et toutes les envies.",
-    "catalog-title": "Notre Catalogue",
-    "catalog-sub": "Greffes, mèches, closures, frontals et perruques de qualité exceptionnelle.",
+    "catalog-title": "Notre catalogue de cheveux",
+    "catalog-sub": "Greffes, mèches, closures, frontals et perruques premium à choisir selon votre style.",
     "promo-title": "Promotions & Offres",
     "promo-sub": "Profitez de nos offres exclusives et faites-vous livrer partout au Cameroun.",
     "promo-1-title": "Pack 3 Greffes + Closure",
@@ -931,8 +1024,8 @@ const translations = {
     "nav-promo": "Promotions",
     "nav-delivery": "Delivery",
     "nav-about": "About",
-    "hero-title": "Beauty begins with exceptional hair",
-    "hero-sub": "Discover our selection of premium hair bundles, weaves and wigs. Delivery all over Cameroon.",
+    "hero-title": "Premium hair bundles and wigs for a natural look",
+    "hero-sub": "Discover our premium hair bundles, weaves, closures, frontals and wigs. Delivery all over Cameroon.",
     "btn-discover": "Discover our collections",
     "btn-order-wa": "Order on WhatsApp",
     "adv1": "Premium quality hair",
@@ -943,7 +1036,7 @@ const translations = {
     "nav-groups": "Group purchases",
     "video-eyebrow": "In motion",
     "video-title": "Our styles on video",
-    "video-sub": "See the volume, shine and movement of our styles before choosing your favourite.",
+    "video-sub": "See the volume, shine and movement of our hair bundles and wigs before choosing your favourite.",
     "video-catalog": "View the catalogue",
     "video-unsupported": "Your browser cannot play this video.",
     "video-label": "Watch the look",
@@ -969,8 +1062,8 @@ const translations = {
     "textures-sub": "Straight, curly, body wave or bob: explore textures to match your mood today.",
     "cat-title": "Our Categories",
     "cat-sub": "Explore our complete range of premium hair for every style and preference.",
-    "catalog-title": "Our Catalog",
-    "catalog-sub": "Hair bundles, weaves, closures, frontals and exceptional quality wigs.",
+    "catalog-title": "Our hair catalog",
+    "catalog-sub": "Premium hair bundles, weaves, closures, frontals and wigs to match your style.",
     "promo-title": "Promotions & Offers",
     "promo-sub": "Enjoy our exclusive offers and get delivery anywhere in Cameroon.",
     "promo-1-title": "3 Bundles + Closure Pack",
@@ -1317,6 +1410,7 @@ function initVideoCarousel() {
   function pauseHiddenVideos() {
     cards.forEach((card, index) => {
       if (index !== current) card.querySelector('video')?.pause();
+      else card.querySelector('video')?.play?.().catch(() => {});
     });
   }
 
