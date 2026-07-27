@@ -5,6 +5,7 @@ import {
   createUserWithEmailAndPassword,
   getRedirectResult,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPopup,
   signInWithRedirect,
@@ -46,14 +47,29 @@ googleProvider.setCustomParameters({ prompt: 'select_account' });
 function friendlyAuthError(error) {
   const origin = window.location.hostname;
   const messages = {
-    'auth/unauthorized-domain': `Ce domaine (${origin}) n’est pas encore autorisé dans Firebase. Ajoutez-le dans Authentication → Settings → Authorized domains.`,
-    'auth/operation-not-allowed': 'La connexion Google n’est pas activée dans Firebase Authentication. Activez Google dans Sign-in method.',
-    'auth/popup-blocked': 'La fenêtre Google a été bloquée par le navigateur. Autorisez les pop-ups puis réessayez.',
+    'auth/unauthorized-domain': `Ce site (${origin}) n’est pas encore autorisé dans Firebase. Dans la console Firebase, ouvrez Authentication → Settings → Authorized domains puis ajoutez ce domaine.`,
+    'auth/operation-not-allowed': 'La connexion Google n’est pas activée. Dans la console Firebase, ouvrez Authentication → Sign-in method → Google puis activez-la.',
+    'auth/popup-blocked': 'La fenêtre Google a été bloquée par le navigateur. Autorisez les pop-ups pour ce site puis réessayez.',
     'auth/popup-closed-by-user': 'La fenêtre de connexion a été fermée avant la fin.',
-    'auth/network-request-failed': 'La connexion réseau a échoué. Vérifiez votre connexion puis réessayez.',
-    'auth/account-exists-with-different-credential': 'Un compte existe déjà avec cette adresse. Connectez-vous d’abord avec son moyen de connexion habituel.'
+    'auth/cancelled-popup-request': null,
+    'auth/network-request-failed': 'La connexion réseau a échoué. Vérifiez votre connexion internet puis réessayez.',
+    'auth/account-exists-with-different-credential': 'Un compte existe déjà avec cette adresse e-mail. Connectez-vous avec le moyen habituel (e-mail ou Google).',
+    'auth/invalid-email': 'Cette adresse e-mail n’est pas valide.',
+    'auth/user-not-found': 'Aucun compte n’est associé à cette adresse e-mail.',
+    'auth/wrong-password': 'Mot de passe incorrect.',
+    'auth/invalid-credential': 'E-mail ou mot de passe incorrect.',
+    'auth/email-already-in-use': 'Un compte existe déjà avec cette adresse e-mail. Connectez-vous plutôt.',
+    'auth/weak-password': 'Le mot de passe doit contenir au moins 6 caractères.',
+    'auth/too-many-requests': 'Trop de tentatives. Patientez quelques minutes puis réessayez.',
+    'auth/missing-email': 'Saisissez votre adresse e-mail.'
   };
-  return new Error(messages[error?.code] || 'La connexion Google a échoué. Réessayez ou utilisez votre e-mail.');
+  if (error?.code && Object.prototype.hasOwnProperty.call(messages, error.code) && messages[error.code] === null) {
+    // Silent/expected error (e.g. user cancelled a duplicate popup): no message needed.
+    const silent = new Error('');
+    silent.silent = true;
+    return silent;
+  }
+  return new Error(messages[error?.code] || 'La connexion a échoué. Réessayez ou contactez le support.');
 }
 
 function notifyAuthState(user) {
@@ -75,7 +91,7 @@ async function signInWithGoogle() {
     return await signInWithPopup(auth, googleProvider);
   } catch (error) {
     // If the popup is explicitly blocked by the browser, fall back to redirect.
-    if (error?.code === 'auth/popup-blocked' || error?.code === 'auth/popup-closed-by-user') {
+    if (error?.code === 'auth/popup-blocked') {
       try {
         return await signInWithRedirect(auth, googleProvider);
       } catch (redirectError) {
@@ -86,12 +102,21 @@ async function signInWithGoogle() {
   }
 }
 
+async function resetPassword(email) {
+  if (!email) throw friendlyAuthError({ code: 'auth/missing-email' });
+  await sendPasswordResetEmail(auth, email);
+}
+
 async function signInWithEmail(email, password, createAccount = false, displayName = '') {
-  const credential = createAccount
-    ? await createUserWithEmailAndPassword(auth, email, password)
-    : await signInWithEmailAndPassword(auth, email, password);
-  if (createAccount && displayName) await updateProfile(credential.user, { displayName });
-  return credential;
+  try {
+    const credential = createAccount
+      ? await createUserWithEmailAndPassword(auth, email, password)
+      : await signInWithEmailAndPassword(auth, email, password);
+    if (createAccount && displayName) await updateProfile(credential.user, { displayName });
+    return credential;
+  } catch (error) {
+    throw friendlyAuthError(error);
+  }
 }
 
 onAuthStateChanged(auth, async (user) => {
@@ -166,7 +191,7 @@ async function createContributionGroup(group, user) {
   try {
     await addDoc(collection(groupRef, 'messages'), {
       system: true,
-      content: 'Le groupe a été créé. Les cotisations confirmées uniquement feront progresser l'objectif.',
+      content: 'Le groupe a été créé. Les cotisations confirmées uniquement feront progresser l\'objectif.',
       createdAt: serverTimestamp()
     });
   } catch (_) {
@@ -252,6 +277,7 @@ window.FirebaseClient = {
   db,
   signInWithGoogle,
   signInWithEmail,
+  resetPassword,
   signOut,
   createContributionGroup,
   joinContributionGroup,

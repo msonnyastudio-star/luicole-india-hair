@@ -22,13 +22,25 @@ const GroupUI = (() => {
     return `LUC-${Array.from(values, (value) => alphabet[value % alphabet.length]).join('')}`;
   };
   const firebaseError = (error) => {
+    if (error?.silent) return;
     const messages = {
       'permission-denied': text('Accès Firestore refusé. Vérifiez que les règles Firestore ont été déployées pour ce projet Firebase.', 'Firestore access was denied. Check that the Firestore rules have been deployed to this Firebase project.'),
       'unavailable': text('Firestore est momentanément indisponible. Vérifiez votre connexion puis réessayez.', 'Firestore is temporarily unavailable. Check your connection and try again.'),
       'unauthenticated': text('Votre session a expiré. Connectez-vous à nouveau avant de continuer.', 'Your session has expired. Sign in again before continuing.')
     };
-    showToast(messages[error?.code] || error?.message || text('Une erreur de connexion est survenue.', 'A connection error occurred.'));
+    const message = messages[error?.code] || error?.message || text('Une erreur de connexion est survenue.', 'A connection error occurred.');
+    showAuthInlineError(message) || showToast(message);
   };
+
+  // Shows the error inside the open auth form (like most sign-in pages do) instead of a toast
+  // that disappears too fast to read. Returns true if an inline slot was found and used.
+  function showAuthInlineError(message) {
+    const slot = document.getElementById('authErrorBox');
+    if (!slot) return false;
+    slot.textContent = message;
+    slot.hidden = false;
+    return true;
+  }
 
   function openModal(content) {
     const element = modal();
@@ -91,49 +103,73 @@ const GroupUI = (() => {
   function showWelcome(name) {
     openModal(`
       <div class="welcome-screen">
-        <div class="welcome-crown">&#128081;</div>
-        <h2 class="welcome-title">${text('Bienvenue dans la famille Luciole !', 'Welcome to the Luciole family!')}</h2>
-        <p class="welcome-name">${escapeHTML(name || 'Belle')}</p>
+        <div class="welcome-check"><i class="fas fa-check"></i></div>
+        <h2 class="welcome-title">${text('Bienvenue', 'Welcome')}${name ? ', ' + escapeHTML(name) : ''}</h2>
         <p class="welcome-text">${text(
-          'Votre compte a \u00e9t\u00e9 cr\u00e9\u00e9 avec succ\u00e8s \u2728 Vous pouvez maintenant cr\u00e9er vos groupes d\u2019achat, suivre vos cotisations et discuter avec vos proches en toute s\u00e9curit\u00e9.',
-          'Your account was created successfully \u2728 You can now create group purchases, track contributions and chat with your loved ones.'
+          'Votre compte a été créé avec succès. Vous pouvez maintenant créer des groupes d\u2019achat, suivre vos cotisations et discuter avec vos proches en toute sécurité.',
+          'Your account was created successfully. You can now create group purchases, track contributions and chat with your loved ones in a secure space.'
         )}</p>
         <div class="welcome-perks">
-          <div class="welcome-perk"><i class="fas fa-users"></i><span>${text('Groupes priv\u00e9s', 'Private groups')}</span></div>
-          <div class="welcome-perk"><i class="fas fa-heart"></i><span>${text('Achats en famille', 'Family purchases')}</span></div>
-          <div class="welcome-perk"><i class="fas fa-shield-heart"></i><span>${text('Espace s\u00e9curis\u00e9', 'Secure space')}</span></div>
+          <div class="welcome-perk"><i class="fas fa-users"></i><span>${text('Groupes privés', 'Private groups')}</span></div>
+          <div class="welcome-perk"><i class="fas fa-hand-holding-heart"></i><span>${text('Achats en famille', 'Family purchases')}</span></div>
+          <div class="welcome-perk"><i class="fas fa-shield-halved"></i><span>${text('Espace sécurisé', 'Secure space')}</span></div>
         </div>
-        <button class="btn btn-welcome" type="button" data-group-close>${text('Commencer mon exp\u00e9rience \u2728', 'Start my experience \u2728')}</button>
+        <button class="btn btn-welcome" type="button" data-group-close>${text('Continuer', 'Continue')}</button>
       </div>`);
   }
 
-  function showAuth() {
-    openModal(`
-      <div class="auth-header">
-        <div class="auth-header-icon">\u2728</div>
-        <h2>${text('Mon espace Luciole', 'My Luciole space')}</h2>
-        <p>${text('Connectez-vous pour acc\u00e9der \u00e0 vos groupes, cotisations et discussions priv\u00e9es.', 'Sign in to access your groups, contributions and private chats.')}</p>
-      </div>
-      <div class="auth-options">
-        <button class="btn btn-google" type="button" data-firebase-google>
-          <svg width="18" height="18" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path fill="#4285F4" d="M47.5 24.6c0-1.6-.1-3.1-.4-4.6H24v8.7h13.2c-.6 3-2.3 5.5-4.9 7.2v6h7.9c4.6-4.2 7.3-10.4 7.3-17.3z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.9-6c-2.1 1.4-4.9 2.3-8 2.3-6.1 0-11.3-4.1-13.2-9.7H2.7v6.2C6.6 42.5 14.8 48 24 48z"/><path fill="#FBBC05" d="M10.8 28.8c-.5-1.4-.7-2.8-.7-4.4s.3-3.1.7-4.4v-6.2H2.7C1 17.1 0 20.4 0 24s1 6.9 2.7 9.2l8.1-4.4z"/><path fill="#EA4335" d="M24 9.6c3.4 0 6.5 1.2 8.9 3.5l6.6-6.6C35.9 2.5 30.5 0 24 0 14.8 0 6.6 5.5 2.7 14.8l8.1 4.4z"/></svg>
-          ${text('Continuer avec Google', 'Continue with Google')}
-        </button>
-        <div class="auth-divider"><span>${text('ou', 'or')}</span></div>
-        <form class="group-form" id="firebaseEmailForm">
-          <label>${text('Adresse e-mail', 'Email address')}<input name="email" type="email" autocomplete="email" required placeholder="vous@exemple.com"></label>
-          <label id="nameFieldWrap" style="display:none;">${text('Votre pr\u00e9nom', 'Your first name')}<input name="displayName" type="text" autocomplete="given-name" maxlength="60" placeholder="${text('Ex. Aminata', 'E.g. Aminata')}"></label>
-          <label>${text('Mot de passe', 'Password')}<input name="password" type="password" autocomplete="current-password" minlength="6" required placeholder="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"></label>
-          <label class="auth-checkbox-wrap"><input name="createAccount" type="checkbox" id="createAccountToggle"> <span>${text('Cr\u00e9er un nouveau compte', 'Create a new account')}</span></label>
-          <button class="btn btn-primary" type="submit"><i class="fas fa-envelope"></i> ${text('Continuer', 'Continue')}</button>
-        </form>
-      </div>`);
+  function authFormMarkup(mode) {
+    const isSignup = mode === 'signup';
+    return `
+      <div class="authbox-error" id="authErrorBox" role="alert" hidden></div>
+      <button class="btn-google-official" type="button" data-firebase-google>
+        <svg width="18" height="18" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path fill="#4285F4" d="M47.5 24.6c0-1.6-.1-3.1-.4-4.6H24v8.7h13.2c-.6 3-2.3 5.5-4.9 7.2v6h7.9c4.6-4.2 7.3-10.4 7.3-17.3z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.9-6c-2.1 1.4-4.9 2.3-8 2.3-6.1 0-11.3-4.1-13.2-9.7H2.7v6.2C6.6 42.5 14.8 48 24 48z"/><path fill="#FBBC05" d="M10.8 28.8c-.5-1.4-.7-2.8-.7-4.4s.3-3.1.7-4.4v-6.2H2.7C1 17.1 0 20.4 0 24s1 6.9 2.7 9.2l8.1-4.4z"/><path fill="#EA4335" d="M24 9.6c3.4 0 6.5 1.2 8.9 3.5l6.6-6.6C35.9 2.5 30.5 0 24 0 14.8 0 6.6 5.5 2.7 14.8l8.1 4.4z"/></svg>
+        <span>${text('Continuer avec Google', 'Continue with Google')}</span>
+      </button>
+      <div class="authbox-divider"><span>${text('ou', 'or')}</span></div>
+      <form class="authbox-form" id="${isSignup ? 'firebaseSignupForm' : 'firebaseSigninForm'}" novalidate>
+        ${isSignup ? `<label>${text('Votre prénom', 'Your first name')}<input name="displayName" type="text" autocomplete="given-name" maxlength="60" required placeholder="${text('Ex. Aminata', 'E.g. Aminata')}"></label>` : ''}
+        <label>${text('Adresse e-mail', 'Email address')}<input name="email" type="email" autocomplete="email" required placeholder="vous@exemple.com"></label>
+        <label>${text('Mot de passe', 'Password')}<input name="password" type="password" autocomplete="${isSignup ? 'new-password' : 'current-password'}" minlength="6" required placeholder="${text('6 caractères minimum', 'Minimum 6 characters')}"></label>
+        ${isSignup ? '' : `<a href="javascript:void(0)" class="authbox-forgot" data-forgot-password>${text('Mot de passe oublié\u00a0?', 'Forgot your password?')}</a>`}
+        <button class="btn-authbox-primary" type="submit">${isSignup ? text('Créer mon compte', 'Create my account') : text('Se connecter', 'Sign in')}</button>
+      </form>
+      <p class="authbox-switch">
+        ${isSignup
+          ? `${text('Vous avez déjà un compte\u00a0?', 'Already have an account?')} <a href="javascript:void(0)" data-auth-tab="signin">${text('Se connecter', 'Sign in')}</a>`
+          : `${text('Nouveau chez Luciole\u00a0?', 'New to Luciole?')} <a href="javascript:void(0)" data-auth-tab="signup">${text('Créer un compte', 'Create an account')}</a>`}
+      </p>`;
+  }
 
-    const toggle = document.getElementById('createAccountToggle');
-    const nameWrap = document.getElementById('nameFieldWrap');
-    if (toggle && nameWrap) {
-      toggle.addEventListener('change', () => { nameWrap.style.display = toggle.checked ? 'block' : 'none'; });
-    }
+  function showAuth(mode = 'signin') {
+    openModal(`
+      <div class="authbox">
+        <div class="authbox-brand">
+          <img src="images/logo-luciole.png" alt="Luciole India Hair" class="authbox-logo">
+          <span>Luciole India Hair</span>
+        </div>
+        <h2 class="authbox-title">${mode === 'signup' ? text('Créer un compte', 'Create an account') : text('Se connecter', 'Sign in')}</h2>
+        <p class="authbox-subtitle">${text('Accédez à vos groupes, cotisations et discussions privées.', 'Access your groups, contributions and private chats.')}</p>
+        <div class="authbox-panel" id="authPanel">${authFormMarkup(mode)}</div>
+      </div>`);
+  }
+
+  function showForgotPassword() {
+    openModal(`
+      <div class="authbox">
+        <div class="authbox-brand">
+          <img src="images/logo-luciole.png" alt="Luciole India Hair" class="authbox-logo">
+          <span>Luciole India Hair</span>
+        </div>
+        <h2 class="authbox-title">${text('Réinitialiser le mot de passe', 'Reset your password')}</h2>
+        <p class="authbox-subtitle">${text('Indiquez votre adresse e-mail : nous vous enverrons un lien pour créer un nouveau mot de passe.', 'Enter your email address and we will send you a link to create a new password.')}</p>
+        <div class="authbox-error" id="authErrorBox" role="alert" hidden></div>
+        <form class="authbox-form" id="forgotPasswordForm" novalidate>
+          <label>${text('Adresse e-mail', 'Email address')}<input name="email" type="email" autocomplete="email" required placeholder="vous@exemple.com"></label>
+          <button class="btn-authbox-primary" type="submit">${text('Envoyer le lien', 'Send the link')}</button>
+        </form>
+        <p class="authbox-switch"><a href="javascript:void(0)" data-auth-tab="signin">${text('Retour à la connexion', 'Back to sign in')}</a></p>
+      </div>`);
   }
 
   function applyFirebaseUser(user) {
@@ -347,6 +383,18 @@ const GroupUI = (() => {
 
   function openCreateForProduct(product) { showCreateGroup(product); }
 
+  function setButtonLoading(button, isLoading, loadingLabel) {
+    if (!button) return;
+    if (isLoading) {
+      button.dataset.originalHtml = button.innerHTML;
+      button.disabled = true;
+      button.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i> ${escapeHTML(loadingLabel)}`;
+    } else {
+      button.disabled = false;
+      if (button.dataset.originalHtml) button.innerHTML = button.dataset.originalHtml;
+    }
+  }
+
   function bindEvents() {
     document.addEventListener('click', (event) => {
       const authButton = event.target.closest('[data-group-auth], #accountBtn');
@@ -366,7 +414,10 @@ const GroupUI = (() => {
       const contribute = event.target.closest('[data-contribute]');
       if (contribute) { showContribution(findGroup(contribute.dataset.contribute)); return; }
       const discussion = event.target.closest('[data-discussion]');
-      if (discussion) showDiscussion(findGroup(discussion.dataset.discussion)).catch(firebaseError);
+      if (discussion) { showDiscussion(findGroup(discussion.dataset.discussion)).catch(firebaseError); return; }
+      const authTab = event.target.closest('[data-auth-tab]');
+      if (authTab) { showAuth(authTab.dataset.authTab); return; }
+      if (event.target.closest('[data-forgot-password]')) { showForgotPassword(); return; }
     });
     document.addEventListener('submit', (event) => {
       if (event.target.id === 'createGroupForm') { event.preventDefault(); createGroup(event.target).catch(firebaseError); }
@@ -375,18 +426,43 @@ const GroupUI = (() => {
       if (event.target.id === 'messageForm') { event.preventDefault(); sendMessage(event.target).catch(firebaseError); }
     });
     document.addEventListener('click', (event) => {
-      if (event.target.closest('[data-firebase-google]')) {
-        if (!window.FirebaseClient) return showToast('Firebase est en cours de chargement.');
-        window.FirebaseClient.signInWithGoogle().catch(firebaseError);
+      const googleButton = event.target.closest('[data-firebase-google]');
+      if (googleButton) {
+        if (!window.FirebaseClient) return showToast(text('Chargement en cours, réessayez dans un instant.', 'Still loading, please try again in a moment.'));
+        document.getElementById('authErrorBox')?.setAttribute('hidden', '');
+        setButtonLoading(googleButton, true, text('Connexion...', 'Signing in...'));
+        window.FirebaseClient.signInWithGoogle()
+          .catch(firebaseError)
+          .finally(() => setButtonLoading(googleButton, false));
       }
     });
     document.addEventListener('submit', (event) => {
-      if (event.target.id === 'firebaseEmailForm') {
+      if (event.target.id === 'firebaseSigninForm' || event.target.id === 'firebaseSignupForm') {
         event.preventDefault();
-        if (!window.FirebaseClient) return showToast('Firebase est en cours de chargement.');
+        if (!window.FirebaseClient) return showToast(text('Chargement en cours, réessayez dans un instant.', 'Still loading, please try again in a moment.'));
+        document.getElementById('authErrorBox')?.setAttribute('hidden', '');
+        const isSignup = event.target.id === 'firebaseSignupForm';
         const data = new FormData(event.target);
-        const isNew = data.has('createAccount');
-        window.FirebaseClient.signInWithEmail(data.get('email'), data.get('password'), isNew, isNew ? (data.get('displayName') || '').trim() : '').catch(firebaseError);
+        const submitButton = event.target.querySelector('button[type="submit"]');
+        setButtonLoading(submitButton, true, text('Veuillez patienter...', 'Please wait...'));
+        window.FirebaseClient.signInWithEmail(data.get('email'), data.get('password'), isSignup, isSignup ? (data.get('displayName') || '').trim() : '')
+          .catch(firebaseError)
+          .finally(() => setButtonLoading(submitButton, false));
+      }
+      if (event.target.id === 'forgotPasswordForm') {
+        event.preventDefault();
+        if (!window.FirebaseClient) return showToast(text('Chargement en cours, réessayez dans un instant.', 'Still loading, please try again in a moment.'));
+        document.getElementById('authErrorBox')?.setAttribute('hidden', '');
+        const email = new FormData(event.target).get('email');
+        const submitButton = event.target.querySelector('button[type="submit"]');
+        setButtonLoading(submitButton, true, text('Envoi...', 'Sending...'));
+        window.FirebaseClient.resetPassword(email)
+          .then(() => {
+            closeModal();
+            showToast(text('E-mail envoyé. Vérifiez votre boîte de réception.', 'Email sent. Check your inbox.'));
+          })
+          .catch(firebaseError)
+          .finally(() => setButtonLoading(submitButton, false));
       }
     });
     document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && modal()?.classList.contains('active')) closeModal(); });
