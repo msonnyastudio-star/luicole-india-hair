@@ -24,11 +24,11 @@ const GroupUI = (() => {
   const firebaseError = (error) => {
     if (error?.silent) return;
     const messages = {
-      'permission-denied': text('Accès Firestore refusé. Vérifiez que les règles Firestore ont été déployées pour ce projet Firebase.', 'Firestore access was denied. Check that the Firestore rules have been deployed to this Firebase project.'),
-      'unavailable': text('Firestore est momentanément indisponible. Vérifiez votre connexion puis réessayez.', 'Firestore is temporarily unavailable. Check your connection and try again.'),
-      'unauthenticated': text('Votre session a expiré. Connectez-vous à nouveau avant de continuer.', 'Your session has expired. Sign in again before continuing.')
+      'permission-denied': text('Accès refusé. Veuillez vous reconnecter.', 'Access denied. Please sign in again.'),
+      'unavailable': text('Connexion instable. Vérifiez votre réseau puis réessayez.', 'Unstable connection. Check your network and try again.'),
+      'unauthenticated': text('Votre session a expiré. Reconnectez-vous pour continuer.', 'Your session has expired. Sign in again to continue.')
     };
-    const message = messages[error?.code] || error?.message || text('Une erreur de connexion est survenue.', 'A connection error occurred.');
+    const message = messages[error?.code] || error?.message || text('Une erreur est survenue. Réessayez.', 'An error occurred. Please try again.');
     showAuthInlineError(message) || showToast(message);
   };
 
@@ -71,13 +71,30 @@ const GroupUI = (() => {
     const dashboard = document.getElementById('groupsDashboard');
     const account = document.getElementById('accountBtn');
     if (!prompt || !dashboard) return;
-    prompt.hidden = Boolean(user);
-    dashboard.hidden = !user;
+    // Use both the semantic `hidden` attribute and an explicit display value.
+    // Some mobile browser styles can otherwise override the browser's default
+    // `[hidden]` rule on a flex element.
+    if (user) {
+      prompt.hidden = true;
+      prompt.style.display = 'none';
+      dashboard.hidden = false;
+      dashboard.style.display = '';
+    } else {
+      prompt.hidden = false;
+      prompt.style.display = 'flex';
+      dashboard.hidden = true;
+      dashboard.style.display = 'none';
+    }
     if (account) account.innerHTML = user ? `<i class="fas fa-user-check"></i><span class="account-label">${escapeHTML(user.name)}</span>` : `<i class="fas fa-user"></i><span class="account-label">${text('Mon espace', 'My account')}</span>`;
     if (!user) return;
 
     const grid = document.getElementById('groupsGrid');
     const groups = getGroups();
+    // Show loading spinner if firestoreGroups is null (not yet loaded)
+    if (firestoreGroups === null) {
+      grid.innerHTML = `<div style="text-align:center;padding:30px;color:var(--gray);"><i class="fas fa-spinner fa-spin" style="font-size:1.5rem;margin-bottom:10px;display:block;"></i>${text('Chargement de vos groupes…', 'Loading your groups…')}</div>`;
+      return;
+    }
     if (!groups.length) {
       grid.innerHTML = `<div class="groups-auth-prompt"><div><h3>${text('Aucun groupe pour le moment', 'No groups yet')}</h3><p>${text('Choisissez un produit puis créez un groupe privé pour commencer un achat collectif.', 'Choose a product, then create a private group to start a group purchase.')}</p></div><button class="btn btn-primary" data-create-group><i class="fas fa-users"></i> ${text('Créer mon premier groupe', 'Create my first group')}</button></div>`;
       return;
@@ -154,6 +171,18 @@ const GroupUI = (() => {
       </div>`);
   }
 
+  function showAccount() {
+    const user = getUser();
+    if (!user) { showAuth(); return; }
+    openModal(`<div class="authbox account-status-box">
+      <div class="authbox-brand"><img src="images/logo-luciole.png" alt="Luciole India Hair" class="authbox-logo"><span>Luciole India Hair</span></div>
+      <h2 class="authbox-title">${text('Vous êtes connectée', 'You are signed in')}</h2>
+      <p class="authbox-subtitle">${escapeHTML(user.name)}${user.email ? ` · ${escapeHTML(user.email)}` : ''}</p>
+      <button class="btn-authbox-primary" type="button" data-group-close>${text('Continuer', 'Continue')}</button>
+      <button class="account-signout" type="button" data-group-signout>${text('Se déconnecter', 'Sign out')}</button>
+    </div>`);
+  }
+
   function showForgotPassword() {
     openModal(`
       <div class="authbox">
@@ -175,6 +204,7 @@ const GroupUI = (() => {
   function applyFirebaseUser(user) {
     if (user) {
       localStorage.setItem(USER_KEY, JSON.stringify(user));
+      firestoreGroups = null; // reset pour déclencher le spinner au rechargement
       closeModal();
       render();
       refreshFirestoreGroups();
@@ -183,6 +213,7 @@ const GroupUI = (() => {
     }
     const storedUser = getUser();
     if (storedUser?.source === 'firebase') localStorage.removeItem(USER_KEY);
+    firestoreGroups = null;
     render();
   }
 
@@ -193,8 +224,9 @@ const GroupUI = (() => {
       firestoreGroups = await window.FirebaseClient.getMemberGroups(user.id);
       render();
     } catch (error) {
-      // Rules are intentionally strict: explain a missing deployment without exposing private data.
-      showToast('Impossible de charger vos groupes. Vérifiez que Firestore et ses règles sont déployés.');
+      console.warn('Impossible de charger les groupes Firestore :', error);
+      // Ne pas afficher de toast — l'utilisateur verra juste "Aucun groupe pour le moment"
+      render();
     }
   }
 
@@ -398,8 +430,17 @@ const GroupUI = (() => {
   function bindEvents() {
     document.addEventListener('click', (event) => {
       const authButton = event.target.closest('[data-group-auth], #accountBtn');
-      if (authButton) { showAuth(); return; }
+      if (authButton) {
+        authButton.id === 'accountBtn' ? showAccount() : showAuth();
+        return;
+      }
       if (event.target.closest('[data-group-close]') || event.target === modal()) { closeModal(); return; }
+      if (event.target.closest('[data-group-signout]')) {
+        const user = getUser();
+        if (user?.source === 'firebase' && window.FirebaseClient) window.FirebaseClient.signOut(window.FirebaseClient.auth).catch(firebaseError);
+        else { localStorage.removeItem(USER_KEY); closeModal(); render(); }
+        return;
+      }
       if (event.target.closest('#createGroupBtn, [data-create-group]')) { showCreateGroup(); return; }
       if (event.target.closest('[data-join-group]')) { showJoinGroup(); return; }
       const invite = event.target.closest('[data-invite]');
