@@ -196,7 +196,10 @@
           <h2 class="section-title" data-i18n="groups-title">On se retrouve, on cotise, on brille ✨</h2>
           <p class="section-subtitle" data-i18n="groups-sub">Créez un petit groupe avec votre famille, vos amis ou vos proches pour financer ensemble un modèle précis. Un espace simple, privé et joyeux.</p>
         </div>
-        <button class="btn btn-primary" id="createGroupBtn"><i class="fas fa-users"></i> <span data-i18n="groups-create">Créer un groupe</span></button>
+        <div class="groups-heading-actions">
+          <button class="btn btn-outline" type="button" data-join-group><i class="fas fa-user-plus"></i> <span data-i18n="groups-join">Rejoindre un groupe</span></button>
+          <button class="btn btn-primary" id="createGroupBtn"><i class="fas fa-users"></i> <span data-i18n="groups-create">Créer un groupe</span></button>
+        </div>
       </div>
       <p class="group-safety"><i class="fas fa-shield-heart"></i> <span data-i18n="groups-safety">Pour votre sécurité, créez ou rejoignez principalement des groupes composés de personnes que vous connaissez et en qui vous avez confiance.</span></p>
       <div id="groupsAuthPrompt" class="groups-auth-prompt">

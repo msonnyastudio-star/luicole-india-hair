@@ -23,6 +23,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  writeBatch,
   where
 } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
 
@@ -116,7 +117,8 @@ getRedirectResult(auth).catch((error) => {
 
 async function createContributionGroup(group, user) {
   const groupRef = doc(db, 'groups', group.id);
-  await setDoc(groupRef, {
+  const batch = writeBatch(db);
+  batch.set(groupRef, {
     name: group.name,
     beneficiary: group.beneficiary,
     privacy: group.privacy,
@@ -127,17 +129,26 @@ async function createContributionGroup(group, user) {
     variant: group.variant,
     targetAmount: group.targetAmount,
     priceSnapshot: group.priceSnapshot,
+    inviteCode: group.inviteCode,
     memberCount: 1,
     status: 'funding',
     createdAt: serverTimestamp()
   });
-  await setDoc(doc(groupRef, 'members', user.id), {
+  batch.set(doc(groupRef, 'members', user.id), {
     userId: user.id,
     name: user.name,
     role: 'group_admin',
     status: 'accepted',
     createdAt: serverTimestamp()
   });
+  batch.set(doc(db, 'groupInvites', group.inviteCode), {
+    inviteCode: group.inviteCode,
+    groupId: group.id,
+    groupName: group.name,
+    creatorId: user.id,
+    createdAt: serverTimestamp()
+  });
+  await batch.commit();
   await addDoc(collection(groupRef, 'messages'), {
     system: true,
     content: 'Le groupe a été créé. Les cotisations confirmées uniquement feront progresser l’objectif.',
@@ -156,14 +167,44 @@ async function getMemberGroups(userId) {
     const groupSnapshot = await getDoc(groupRef);
     if (!groupSnapshot.exists()) return null;
     const contributions = await getDocs(collection(groupRef, 'contributions'));
+    const members = await getDocs(collection(groupRef, 'members'));
     return {
       id: groupSnapshot.id,
       ...groupSnapshot.data(),
       contributions: contributions.docs.map((item) => ({ id: item.id, ...item.data() })),
+      memberCount: members.size,
       messages: []
     };
   }));
   return groups.filter(Boolean);
+}
+
+async function joinContributionGroup(inviteCode, user) {
+  const normalizedCode = String(inviteCode || '').trim().toUpperCase();
+  const inviteSnapshot = await getDoc(doc(db, 'groupInvites', normalizedCode));
+  if (!inviteSnapshot.exists()) {
+    const error = new Error('Code d’invitation introuvable.');
+    error.code = 'not-found';
+    throw error;
+  }
+  const invite = inviteSnapshot.data();
+  const memberRef = doc(db, 'groups', invite.groupId, 'members', user.id);
+  const existingMember = await getDoc(memberRef);
+  if (!existingMember.exists()) {
+    await setDoc(memberRef, {
+      userId: user.id,
+      name: user.name,
+      role: 'member',
+      status: 'accepted',
+      joinedAt: serverTimestamp()
+    });
+    await addDoc(collection(db, 'groups', invite.groupId, 'messages'), {
+      system: true,
+      content: `${user.name} a rejoint le groupe.`,
+      createdAt: serverTimestamp()
+    });
+  }
+  return { ...invite, alreadyMember: existingMember.exists() };
 }
 
 async function declareContribution(groupId, contribution) {
@@ -195,6 +236,7 @@ window.FirebaseClient = {
   signInWithEmail,
   signOut,
   createContributionGroup,
+  joinContributionGroup,
   getMemberGroups,
   declareContribution,
   getGroupMessages,

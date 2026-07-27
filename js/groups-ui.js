@@ -16,6 +16,11 @@ const GroupUI = (() => {
   const saveGroups = (groups) => localStorage.setItem(GROUPS_KEY, JSON.stringify(groups));
   const modal = () => document.getElementById('groupModal');
   const createId = (prefix) => window.crypto?.randomUUID?.() || `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const createInviteCode = () => {
+    const alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    const values = window.crypto?.getRandomValues ? window.crypto.getRandomValues(new Uint32Array(8)) : Array.from({ length: 8 }, () => Math.floor(Math.random() * 0xffffffff));
+    return `LUC-${Array.from(values, (value) => alphabet[value % alphabet.length]).join('')}`;
+  };
   const firebaseError = (error) => {
     const messages = {
       'permission-denied': text('Accès Firestore refusé. Vérifiez que les règles Firestore ont été déployées pour ce projet Firebase.', 'Firestore access was denied. Check that the Firestore rules have been deployed to this Firebase project.'),
@@ -77,7 +82,7 @@ const GroupUI = (() => {
           <div class="group-amounts"><span>${text('Confirmé', 'Confirmed')} <strong>${money(confirmed)}</strong></span><span>${text('Reste', 'Remaining')} ${money(remaining)}</span></div>
           <div class="group-progress" aria-label="${text('Progression', 'Progress')} ${percentage}%"><span style="width:${percentage}%"></span></div>
           <div class="group-card-meta"><span><i class="fas fa-users"></i> ${group.memberCount || 1} ${text((group.memberCount || 1) > 1 ? 'membres' : 'membre', (group.memberCount || 1) > 1 ? 'members' : 'member')}</span><span><i class="fas fa-file-invoice"></i> ${declaredCount} ${text('à vérifier', 'to review')}</span></div>
-          <div class="group-card-actions"><button type="button" class="btn btn-outline" data-contribute="${group.id}">${text('Cotiser maintenant', 'Contribute now')}</button><button type="button" class="btn btn-primary" data-discussion="${group.id}">${text('Discussion', 'Chat')}</button></div>
+          <div class="group-card-actions"><button type="button" class="btn btn-outline" data-invite="${group.id}"><i class="fas fa-user-plus"></i> ${text('Inviter', 'Invite')}</button><button type="button" class="btn btn-outline" data-contribute="${group.id}">${text('Cotiser', 'Contribute')}</button><button type="button" class="btn btn-primary" data-discussion="${group.id}">${text('Discussion', 'Chat')}</button></div>
         </div>
       </article>`;
     }).join('');
@@ -148,7 +153,7 @@ const GroupUI = (() => {
     const targetValue = Number(product?.targetAmount) > 0 ? `value="${Number(product.targetAmount)}"` : '';
     openModal(`<h2>${text('Créer un groupe d’achat', 'Create a purchase group')}</h2>
       <p>${text('Le montant objectif est enregistré à la création : les cotisations du groupe serviront uniquement à atteindre ce montant.', 'The target amount is recorded when the group is created: contributions will only be used to reach that target.')}</p>
-      <form class="group-form" id="createGroupForm">
+      <form class="group-form" id="createGroupForm" novalidate>
         <label>${text('Nom du groupe', 'Group name')}<input name="name" required maxlength="80" placeholder="${text('Ex. Famille Leona', 'E.g. Leona family')}"></label>
         ${fixedProduct}
         <label>${text('Montant objectif (FCFA)', 'Target amount (FCFA)')}<input name="targetAmount" type="number" min="1" ${targetValue} required><small>${text('À renseigner si le prix du catalogue n’est pas encore défini.', 'Fill this in if the catalogue price has not yet been set.')}</small></label>
@@ -164,11 +169,14 @@ const GroupUI = (() => {
     const product = getGroupProduct(data);
     const user = getUser();
     const targetAmount = Number(data.get('targetAmount'));
+    const name = data.get('name').trim();
+    const beneficiary = data.get('beneficiary').trim();
+    if (!name || !beneficiary) throw new Error(text('Complétez le nom du groupe et le nom de la bénéficiaire.', 'Complete the group name and beneficiary name.'));
     if (!Number.isFinite(targetAmount) || targetAmount <= 0) throw new Error(text('Indiquez un montant objectif supérieur à zéro.', 'Enter a target amount greater than zero.'));
     const group = {
       id: createId('group'),
-      name: data.get('name').trim(),
-      beneficiary: data.get('beneficiary').trim(),
+      name,
+      beneficiary,
       privacy: data.get('privacy'),
       message: data.get('message').trim(),
       creatorId: user.id,
@@ -177,6 +185,7 @@ const GroupUI = (() => {
       variant: product.variant,
       targetAmount,
       priceSnapshot: { productId: product.productId, variant: product.variant, amount: targetAmount },
+      inviteCode: createInviteCode(),
       memberCount: 1,
       contributions: [],
       messages: [{ system: true, content: text('Le groupe a été créé. Les cotisations confirmées uniquement feront progresser l’objectif.', 'The group was created. Only confirmed contributions move the target forward.') }],
@@ -194,6 +203,46 @@ const GroupUI = (() => {
     closeModal();
     render();
     showToast(text('Groupe créé. Vous êtes administratrice du groupe.', 'Group created. You are the group administrator.'));
+  }
+
+  function showInvite(group) {
+    const code = group.inviteCode;
+    if (!code) {
+      showToast(text('Ce groupe a été créé avant les invitations. Créez un nouveau groupe pour obtenir un code sécurisé.', 'This group was created before invitations were added. Create a new group to get a secure code.'));
+      return;
+    }
+    openModal(`<h2>${text('Inviter dans ce groupe', 'Invite people to this group')}</h2>
+      <p>${text('Partagez ce code uniquement avec les personnes de confiance que vous souhaitez ajouter à «', 'Share this code only with trusted people you want to add to “')}${escapeHTML(group.name)}».</p>
+      <div class="group-invite-code"><span>${escapeHTML(code)}</span><button class="btn btn-primary" type="button" data-copy-invite="${escapeHTML(code)}"><i class="fas fa-copy"></i> ${text('Copier', 'Copy')}</button></div>
+      <p class="group-payment-warning">${text('Chaque personne doit se connecter, puis choisir « Rejoindre un groupe » et saisir ce code. Ne publiez pas ce code sur les réseaux sociaux.', 'Each person must sign in, choose “Join a group”, then enter this code. Do not post this code on social media.')}</p>`);
+  }
+
+  function showJoinGroup() {
+    if (!getUser()) { showAuth(); return; }
+    openModal(`<h2>${text('Rejoindre un groupe', 'Join a group')}</h2>
+      <p>${text('Demandez le code d’invitation à la personne qui a créé le groupe.', 'Ask the person who created the group for the invitation code.')}</p>
+      <form class="group-form" id="joinGroupForm" novalidate>
+        <label>${text('Code d’invitation', 'Invitation code')}<input name="inviteCode" required maxlength="12" autocomplete="off" placeholder="LUC-ABCDEFGH" style="text-transform:uppercase"></label>
+        <button class="btn btn-primary" type="submit"><i class="fas fa-user-plus"></i> ${text('Rejoindre le groupe', 'Join group')}</button>
+      </form>`);
+  }
+
+  async function joinGroup(form) {
+    const code = new FormData(form).get('inviteCode').trim().toUpperCase();
+    if (!code) throw new Error(text('Saisissez le code d’invitation.', 'Enter the invitation code.'));
+    const user = getUser();
+    if (user.source === 'firebase') {
+      const invite = await window.FirebaseClient.joinContributionGroup(code, user);
+      await refreshFirestoreGroups();
+      closeModal();
+      showToast(invite.alreadyMember ? text('Vous faites déjà partie de ce groupe.', 'You are already a member of this group.') : text('Bienvenue dans le groupe ! Vous pouvez maintenant discuter et cotiser.', 'Welcome to the group! You can now chat and contribute.'));
+      return;
+    }
+    const groups = getGroups();
+    const group = groups.find((item) => item.inviteCode === code);
+    if (!group) throw new Error(text('Ce code est introuvable sur cet appareil. Connectez-vous avec Firebase pour rejoindre un groupe partagé.', 'This code cannot be found on this device. Sign in with Firebase to join a shared group.'));
+    closeModal();
+    showToast(text('Vous faites déjà partie de ce groupe sur cet appareil.', 'You are already a member of this group on this device.'));
   }
 
   function findGroup(id) { return getGroups().find((group) => group.id === id); }
@@ -265,6 +314,16 @@ const GroupUI = (() => {
       if (authButton) { showAuth(); return; }
       if (event.target.closest('[data-group-close]') || event.target === modal()) { closeModal(); return; }
       if (event.target.closest('#createGroupBtn, [data-create-group]')) { showCreateGroup(); return; }
+      if (event.target.closest('[data-join-group]')) { showJoinGroup(); return; }
+      const invite = event.target.closest('[data-invite]');
+      if (invite) { showInvite(findGroup(invite.dataset.invite)); return; }
+      const copyInvite = event.target.closest('[data-copy-invite]');
+      if (copyInvite) {
+        if (navigator.clipboard?.writeText) {
+          navigator.clipboard.writeText(copyInvite.dataset.copyInvite).then(() => showToast(text('Code copié.', 'Code copied.'))).catch(() => showToast(copyInvite.dataset.copyInvite));
+        } else showToast(copyInvite.dataset.copyInvite);
+        return;
+      }
       const contribute = event.target.closest('[data-contribute]');
       if (contribute) { showContribution(findGroup(contribute.dataset.contribute)); return; }
       const discussion = event.target.closest('[data-discussion]');
@@ -272,6 +331,7 @@ const GroupUI = (() => {
     });
     document.addEventListener('submit', (event) => {
       if (event.target.id === 'createGroupForm') { event.preventDefault(); createGroup(event.target).catch(firebaseError); }
+      if (event.target.id === 'joinGroupForm') { event.preventDefault(); joinGroup(event.target).catch(firebaseError); }
       if (event.target.id === 'contributionForm') { event.preventDefault(); declareContribution(event.target).catch(firebaseError); }
       if (event.target.id === 'messageForm') { event.preventDefault(); sendMessage(event.target).catch(firebaseError); }
     });

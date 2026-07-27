@@ -36,6 +36,16 @@ service cloud.firestore {
       allow create: if signedIn() && userId == request.auth.uid && request.resource.data.role == 'customer';
       allow update: if signedIn() && userId == request.auth.uid && request.resource.data.role == resource.data.role;
     }
+    match /groupInvites/{inviteCode} {
+      // An invitation code is only useful when it has been explicitly shared.
+      // Listing is forbidden; the code must be known exactly to be read.
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn()
+        && request.resource.data.creatorId == request.auth.uid
+        && request.resource.data.inviteCode == inviteCode;
+      allow update, delete: if isGeneralAdmin() || (signedIn() && resource.data.creatorId == request.auth.uid);
+    }
     match /{document=**} { allow read, write: if false; }
   }
 }

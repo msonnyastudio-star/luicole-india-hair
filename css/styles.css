@@ -2907,6 +2907,9 @@ img {
 .groups-heading { padding: 24px; border: 1px solid rgba(126, 183, 231, 0.35); border-radius: 22px; background: rgba(255,255,255,0.76); box-shadow: 0 13px 30px rgba(48, 91, 132, 0.08); }
 .groups-heading .eyebrow { color: #1776bd; }
 .groups-heading .btn-primary { background: linear-gradient(135deg, #218dd4, #5762cf); border-color: #218dd4; box-shadow: 0 10px 20px rgba(33, 141, 212, 0.25); }
+.groups-heading-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+.groups-heading-actions .btn-outline { color: #246ead; border-color: #9ec8ed; background: rgba(255,255,255,.78); }
+.groups-heading-actions .btn-outline:hover { color: #fff; background: #277fca; border-color: #277fca; }
 .group-safety { border: 1px solid #b9e4d2; background: #f0fff8; color: #186042; box-shadow: 0 8px 20px rgba(24, 96, 66, 0.06); }
 .group-safety i { color: #16a16b; }
 .groups-auth-prompt { border: 1px solid #dce9f7; border-radius: 20px; background: linear-gradient(110deg, #fff, #f1f8ff); box-shadow: 0 15px 34px rgba(45, 113, 168, 0.1); }
@@ -2931,6 +2934,8 @@ img {
 .group-card-meta { color: #66748d; }
 .group-card-actions .btn-primary { background: #277fca; border-color: #277fca; }
 .group-card-actions .btn-outline { color: #246ead; border-color: #9ec8ed; }
+.group-invite-code { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 20px 0; padding: 14px; border: 1px dashed #73a9d8; border-radius: 14px; color: #1c4770; background: #eff8ff; }
+.group-invite-code span { font-size: clamp(1.05rem, 4vw, 1.35rem); font-weight: 800; letter-spacing: .12em; }
 .group-message-list { border: 1px solid #dce8f4; background: #f4f8fc; }
 .group-message { max-width: 86%; border-radius: 16px 16px 16px 4px; border: 1px solid #dce8f4; box-shadow: 0 3px 7px rgba(40, 91, 135, 0.05); }
 .group-message:nth-child(even):not(.group-system-message) { margin-left: auto; border-radius: 16px 16px 4px 16px; color: #fff; background: linear-gradient(135deg, #318cd2, #6c63c9); border-color: transparent; }
@@ -2953,6 +2958,8 @@ img {
   .video-carousel-btn.prev { left: 8px; }
   .video-carousel-btn.next { right: 8px; }
   .groups-heading { padding: 19px; }
+  .groups-heading-actions { align-items: stretch; width: 100%; }
+  .groups-heading-actions .btn { flex: 1 1 150px; }
   .group-card-top { gap: 8px; }
   .group-status { font-size: 0.66rem; padding: 4px 7px; }
   .group-card-meta { gap: 10px; flex-wrap: wrap; }
