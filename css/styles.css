@@ -2715,6 +2715,31 @@ img {
 .group-form small { color: var(--gray); font-weight: 400; }
 .auth-options { display: grid; gap: 10px; }
 .auth-options .btn { width: 100%; text-transform: none; }
+
+/* ===== Auth modal — feminine redesign ===== */
+.auth-header { text-align: center; padding: 8px 0 20px; }
+.auth-header-icon { font-size: 2.2rem; margin-bottom: 10px; }
+.auth-header h2 { font-family: var(--font-heading); font-size: 1.6rem; background: linear-gradient(135deg, #8B3A6B, #C9A227); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 6px; padding-right: 0; }
+.auth-header p { color: var(--gray); font-size: 0.9rem; margin-bottom: 0; }
+.btn-google { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 13px 20px; background: white; color: #3c4043; border: 1.5px solid #dadce0; border-radius: 50px !important; font-weight: 600; font-size: 0.95rem; box-shadow: 0 1px 6px rgba(0,0,0,0.08); transition: box-shadow 0.2s, background 0.2s; }
+.btn-google:hover { background: #f8f9fa; box-shadow: 0 2px 12px rgba(0,0,0,0.12); }
+.auth-divider { display: flex; align-items: center; gap: 12px; color: var(--gray); font-size: 0.85rem; }
+.auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: var(--beige-dark); }
+.auth-checkbox-wrap { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; cursor: pointer; }
+.auth-checkbox-wrap input { width: auto; margin: 0; accent-color: #8B3A6B; }
+
+/* ===== Welcome screen ===== */
+.welcome-screen { text-align: center; padding: 16px 8px 8px; }
+.welcome-crown { font-size: 3rem; margin-bottom: 12px; animation: crown-bounce 0.8s ease; }
+@keyframes crown-bounce { 0%,100%{transform:translateY(0)} 40%{transform:translateY(-12px)} 70%{transform:translateY(-6px)} }
+.welcome-title { font-family: var(--font-heading); font-size: 1.6rem; background: linear-gradient(135deg, #8B3A6B, #C9A227); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 6px; padding-right: 0; }
+.welcome-name { font-size: 1.05rem; font-weight: 600; color: #8B3A6B; margin-bottom: 12px; }
+.welcome-text { color: var(--gray); font-size: 0.9rem; line-height: 1.7; margin-bottom: 20px; }
+.welcome-perks { display: flex; justify-content: center; gap: 18px; margin-bottom: 22px; flex-wrap: wrap; }
+.welcome-perk { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 0.78rem; color: #8B3A6B; font-weight: 600; }
+.welcome-perk i { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #f9e8f2, #fff5e0); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; color: #8B3A6B; }
+.btn-welcome { background: linear-gradient(135deg, #8B3A6B, #C9A227); color: white; border-radius: 50px !important; padding: 14px 32px; font-size: 1rem; font-weight: 600; letter-spacing: 0.3px; box-shadow: 0 4px 20px rgba(139,58,107,0.35); width: 100%; }
+.btn-welcome:hover { box-shadow: 0 6px 28px rgba(139,58,107,0.5); transform: translateY(-1px); }
 .group-payment-warning { padding: 12px; border-radius: 8px; background: #fff5f5; color: #8c2e2e; font-size: 0.84rem; }
 .group-message-list { max-height: 270px; overflow-y: auto; padding: 12px; border-radius: 10px; background: var(--gray-light); }
 .group-message { padding: 9px 11px; margin-bottom: 8px; border-radius: 10px; background: var(--white); font-size: 0.88rem; }

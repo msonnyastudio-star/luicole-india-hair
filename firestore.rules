@@ -26,7 +26,11 @@ service cloud.firestore {
       }
       match /messages/{messageId} {
         allow read: if isAcceptedMember(groupId);
-        allow create: if isAcceptedMember(groupId) && request.resource.data.authorId == request.auth.uid;
+        // System messages (no authorId) can be written by the group creator or admin.
+        allow create: if isAcceptedMember(groupId) && (
+          (request.resource.data.system == true) ||
+          (request.resource.data.authorId == request.auth.uid && request.resource.data.system == false)
+        );
         allow update: if isGeneralAdmin() || (isAcceptedMember(groupId) && resource.data.authorId == request.auth.uid && request.time < resource.data.createdAt + duration.value(15, 'm'));
         allow delete: if isGeneralAdmin() || (isAcceptedMember(groupId) && resource.data.authorId == request.auth.uid);
       }

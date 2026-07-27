@@ -71,12 +71,17 @@ function notifyAuthState(user) {
 }
 
 async function signInWithGoogle() {
-  const isMobile = window.matchMedia('(max-width: 768px)').matches;
   try {
-    // Firebase recommends redirect on mobile because pop-ups are often blocked there.
-    if (isMobile) return await signInWithRedirect(auth, googleProvider);
     return await signInWithPopup(auth, googleProvider);
   } catch (error) {
+    // If the popup is explicitly blocked by the browser, fall back to redirect.
+    if (error?.code === 'auth/popup-blocked' || error?.code === 'auth/popup-closed-by-user') {
+      try {
+        return await signInWithRedirect(auth, googleProvider);
+      } catch (redirectError) {
+        throw friendlyAuthError(redirectError);
+      }
+    }
     throw friendlyAuthError(error);
   }
 }
@@ -90,6 +95,7 @@ async function signInWithEmail(email, password, createAccount = false, displayNa
 }
 
 onAuthStateChanged(auth, async (user) => {
+  let isNewUser = false;
   try {
     if (user) {
       const userRef = doc(db, 'users', user.uid);
@@ -99,7 +105,10 @@ onAuthStateChanged(auth, async (user) => {
         email: user.email || null,
         updatedAt: serverTimestamp()
       };
-      if (!existingUser.exists()) profile.role = 'customer';
+      if (!existingUser.exists()) {
+        profile.role = 'customer';
+        isNewUser = true;
+      }
       await setDoc(userRef, profile, { merge: true });
     }
   } catch (error) {
@@ -107,6 +116,11 @@ onAuthStateChanged(auth, async (user) => {
     console.warn('Firebase profile synchronization failed:', error);
   } finally {
     notifyAuthState(user);
+    if (isNewUser && user) {
+      window.dispatchEvent(new CustomEvent('firebase-new-user', {
+        detail: { name: user.displayName || user.email || 'Membre Luciole' }
+      }));
+    }
   }
 });
 
@@ -149,11 +163,15 @@ async function createContributionGroup(group, user) {
     createdAt: serverTimestamp()
   });
   await batch.commit();
-  await addDoc(collection(groupRef, 'messages'), {
-    system: true,
-    content: 'Le groupe a été créé. Les cotisations confirmées uniquement feront progresser l’objectif.',
-    createdAt: serverTimestamp()
-  });
+  try {
+    await addDoc(collection(groupRef, 'messages'), {
+      system: true,
+      content: 'Le groupe a été créé. Les cotisations confirmées uniquement feront progresser l'objectif.',
+      createdAt: serverTimestamp()
+    });
+  } catch (_) {
+    // System message is non-critical — the group is already created.
+  }
 }
 
 async function getMemberGroups(userId) {

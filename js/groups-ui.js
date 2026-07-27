@@ -88,13 +88,52 @@ const GroupUI = (() => {
     }).join('');
   }
 
-  function showAuth() {
-    openModal(`<h2>${text('Se connecter à l’espace groupes', 'Sign in to the group space')}</h2>
-      <p>${text('Les groupes, cotisations et discussions sont privés. Connectez-vous pour poursuivre.', 'Groups, contributions and chats are private. Sign in to continue.')}</p>
-      <div class="auth-options">
-        <button class="btn btn-outline" type="button" data-firebase-google><i class="fab fa-google"></i> ${text('Continuer avec Google', 'Continue with Google')}</button>
-        <form class="group-form" id="firebaseEmailForm"><label>${text('Adresse e-mail', 'Email address')}<input name="email" type="email" autocomplete="email" required></label><label>${text('Mot de passe', 'Password')}<input name="password" type="password" autocomplete="current-password" minlength="6" required></label><label><input name="createAccount" type="checkbox"> ${text('Créer un compte si nécessaire', 'Create an account if needed')}</label><button class="btn btn-primary" type="submit"><i class="fas fa-envelope"></i> ${text('Continuer avec mon e-mail', 'Continue with email')}</button></form>
+  function showWelcome(name) {
+    openModal(`
+      <div class="welcome-screen">
+        <div class="welcome-crown">&#128081;</div>
+        <h2 class="welcome-title">${text('Bienvenue dans la famille Luciole !', 'Welcome to the Luciole family!')}</h2>
+        <p class="welcome-name">${escapeHTML(name || 'Belle')}</p>
+        <p class="welcome-text">${text(
+          'Votre compte a \u00e9t\u00e9 cr\u00e9\u00e9 avec succ\u00e8s \u2728 Vous pouvez maintenant cr\u00e9er vos groupes d\u2019achat, suivre vos cotisations et discuter avec vos proches en toute s\u00e9curit\u00e9.',
+          'Your account was created successfully \u2728 You can now create group purchases, track contributions and chat with your loved ones.'
+        )}</p>
+        <div class="welcome-perks">
+          <div class="welcome-perk"><i class="fas fa-users"></i><span>${text('Groupes priv\u00e9s', 'Private groups')}</span></div>
+          <div class="welcome-perk"><i class="fas fa-heart"></i><span>${text('Achats en famille', 'Family purchases')}</span></div>
+          <div class="welcome-perk"><i class="fas fa-shield-heart"></i><span>${text('Espace s\u00e9curis\u00e9', 'Secure space')}</span></div>
+        </div>
+        <button class="btn btn-welcome" type="button" data-group-close>${text('Commencer mon exp\u00e9rience \u2728', 'Start my experience \u2728')}</button>
       </div>`);
+  }
+
+  function showAuth() {
+    openModal(`
+      <div class="auth-header">
+        <div class="auth-header-icon">\u2728</div>
+        <h2>${text('Mon espace Luciole', 'My Luciole space')}</h2>
+        <p>${text('Connectez-vous pour acc\u00e9der \u00e0 vos groupes, cotisations et discussions priv\u00e9es.', 'Sign in to access your groups, contributions and private chats.')}</p>
+      </div>
+      <div class="auth-options">
+        <button class="btn btn-google" type="button" data-firebase-google>
+          <svg width="18" height="18" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path fill="#4285F4" d="M47.5 24.6c0-1.6-.1-3.1-.4-4.6H24v8.7h13.2c-.6 3-2.3 5.5-4.9 7.2v6h7.9c4.6-4.2 7.3-10.4 7.3-17.3z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.9-6c-2.1 1.4-4.9 2.3-8 2.3-6.1 0-11.3-4.1-13.2-9.7H2.7v6.2C6.6 42.5 14.8 48 24 48z"/><path fill="#FBBC05" d="M10.8 28.8c-.5-1.4-.7-2.8-.7-4.4s.3-3.1.7-4.4v-6.2H2.7C1 17.1 0 20.4 0 24s1 6.9 2.7 9.2l8.1-4.4z"/><path fill="#EA4335" d="M24 9.6c3.4 0 6.5 1.2 8.9 3.5l6.6-6.6C35.9 2.5 30.5 0 24 0 14.8 0 6.6 5.5 2.7 14.8l8.1 4.4z"/></svg>
+          ${text('Continuer avec Google', 'Continue with Google')}
+        </button>
+        <div class="auth-divider"><span>${text('ou', 'or')}</span></div>
+        <form class="group-form" id="firebaseEmailForm">
+          <label>${text('Adresse e-mail', 'Email address')}<input name="email" type="email" autocomplete="email" required placeholder="vous@exemple.com"></label>
+          <label id="nameFieldWrap" style="display:none;">${text('Votre pr\u00e9nom', 'Your first name')}<input name="displayName" type="text" autocomplete="given-name" maxlength="60" placeholder="${text('Ex. Aminata', 'E.g. Aminata')}"></label>
+          <label>${text('Mot de passe', 'Password')}<input name="password" type="password" autocomplete="current-password" minlength="6" required placeholder="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"></label>
+          <label class="auth-checkbox-wrap"><input name="createAccount" type="checkbox" id="createAccountToggle"> <span>${text('Cr\u00e9er un nouveau compte', 'Create a new account')}</span></label>
+          <button class="btn btn-primary" type="submit"><i class="fas fa-envelope"></i> ${text('Continuer', 'Continue')}</button>
+        </form>
+      </div>`);
+
+    const toggle = document.getElementById('createAccountToggle');
+    const nameWrap = document.getElementById('nameFieldWrap');
+    if (toggle && nameWrap) {
+      toggle.addEventListener('change', () => { nameWrap.style.display = toggle.checked ? 'block' : 'none'; });
+    }
   }
 
   function applyFirebaseUser(user) {
@@ -346,7 +385,8 @@ const GroupUI = (() => {
         event.preventDefault();
         if (!window.FirebaseClient) return showToast('Firebase est en cours de chargement.');
         const data = new FormData(event.target);
-        window.FirebaseClient.signInWithEmail(data.get('email'), data.get('password'), data.has('createAccount')).catch(firebaseError);
+        const isNew = data.has('createAccount');
+        window.FirebaseClient.signInWithEmail(data.get('email'), data.get('password'), isNew, isNew ? (data.get('displayName') || '').trim() : '').catch(firebaseError);
       }
     });
     document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && modal()?.classList.contains('active')) closeModal(); });
@@ -356,6 +396,7 @@ const GroupUI = (() => {
     bindEvents();
     window.addEventListener('firebase-auth-state', (event) => applyFirebaseUser(event.detail));
     window.addEventListener('firebase-auth-error', (event) => firebaseError(event.detail));
+    window.addEventListener('firebase-new-user', (event) => showWelcome(event.detail?.name));
     render();
   }
   return { init, openCreateForProduct, showAuth, render };
