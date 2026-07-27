@@ -26,6 +26,8 @@ function loadCatalog() {
 }
 
 let PRODUCTS_DATA = loadCatalog();
+// Expose the active catalogue to the separate group-purchase script.
+window.PRODUCTS_DATA = PRODUCTS_DATA;
 
 let cart = JSON.parse(localStorage.getItem('luciole_cart') || '[]');
 let currentProduct = null;

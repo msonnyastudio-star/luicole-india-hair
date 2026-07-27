@@ -116,18 +116,35 @@ const GroupUI = (() => {
     return product && { productId: product.id, productName: product.name, variant: product.lengths[0].length, targetAmount: product.lengths[0].price };
   }
 
-  function showCreateGroup(product = pendingProduct || getDefaultProduct()) {
+  function getGroupProduct(data) {
+    if (pendingProduct) return pendingProduct;
+    const [productId, lengthIndex] = String(data.get('catalogVariant') || '').split(':').map(Number);
+    const product = (window.PRODUCTS_DATA || []).find((item) => item.id === productId);
+    const length = product?.lengths?.[lengthIndex];
+    if (!product || !length) throw new Error(text('Choisissez un modèle et une longueur.', 'Choose a style and a length.'));
+    return { productId: product.id, productName: product.name, variant: length.length, targetAmount: Number(length.price) || 0 };
+  }
+
+  function showCreateGroup(product = pendingProduct || null) {
     if (!getUser()) {
       pendingProduct = product;
       showAuth();
       return;
     }
     pendingProduct = product;
+    const variants = (window.PRODUCTS_DATA || []).flatMap((item) => item.lengths.map((length, index) => ({ item, length, index })));
+    if (!product && !variants.length) {
+      showToast(text('Le catalogue est encore en cours de chargement. Réessayez dans un instant.', 'The catalogue is still loading. Please try again in a moment.'));
+      return;
+    }
+    const fixedProduct = product ? `<label>${text('Produit', 'Product')}<small>${escapeHTML(product.productName)} · ${escapeHTML(product.variant)} · ${money(product.targetAmount)}</small></label>` : `<label>${text('Modèle et longueur', 'Style and length')}<select name="catalogVariant" required>${variants.map(({ item, length, index }) => `<option value="${item.id}:${index}">${escapeHTML(item.name)} — ${escapeHTML(length.length)}</option>`).join('')}</select></label>`;
+    const targetValue = Number(product?.targetAmount) > 0 ? `value="${Number(product.targetAmount)}"` : '';
     openModal(`<h2>${text('Créer un groupe d’achat', 'Create a purchase group')}</h2>
-      <p>${text('Le prix de référence est enregistré à la création afin que toute modification future du catalogue n’affecte pas ce groupe.', 'The reference price is recorded when the group is created, so future catalogue changes will not affect this group.')}</p>
+      <p>${text('Le montant objectif est enregistré à la création : les cotisations du groupe serviront uniquement à atteindre ce montant.', 'The target amount is recorded when the group is created: contributions will only be used to reach that target.')}</p>
       <form class="group-form" id="createGroupForm">
         <label>${text('Nom du groupe', 'Group name')}<input name="name" required maxlength="80" placeholder="${text('Ex. Famille Leona', 'E.g. Leona family')}"></label>
-        <label>${text('Produit', 'Product')}<small>${escapeHTML(product.productName)} · ${escapeHTML(product.variant)} · ${money(product.targetAmount)}</small></label>
+        ${fixedProduct}
+        <label>${text('Montant objectif (FCFA)', 'Target amount (FCFA)')}<input name="targetAmount" type="number" min="1" ${targetValue} required><small>${text('À renseigner si le prix du catalogue n’est pas encore défini.', 'Fill this in if the catalogue price has not yet been set.')}</small></label>
         <label>${text('Bénéficiaire', 'Beneficiary')}<input name="beneficiary" required maxlength="80" placeholder="${text('Nom de la personne qui recevra le produit', 'Name of the person receiving the product')}"></label>
         <label>${text('Confidentialité', 'Privacy')}<select name="privacy"><option value="private">${text('Privé — recommandé', 'Private — recommended')}</option><option value="discoverable">${text('Découvrable — sur demande d’adhésion', 'Discoverable — membership request required')}</option></select></label>
         <label>${text('Message de présentation', 'Introduction message')} <textarea name="message" maxlength="500" placeholder="${text('Facultatif', 'Optional')}"></textarea></label>
@@ -137,8 +154,10 @@ const GroupUI = (() => {
 
   async function createGroup(form) {
     const data = new FormData(form);
-    const product = pendingProduct || getDefaultProduct();
+    const product = getGroupProduct(data);
     const user = getUser();
+    const targetAmount = Number(data.get('targetAmount'));
+    if (!Number.isFinite(targetAmount) || targetAmount <= 0) throw new Error(text('Indiquez un montant objectif supérieur à zéro.', 'Enter a target amount greater than zero.'));
     const group = {
       id: createId('group'),
       name: data.get('name').trim(),
@@ -149,8 +168,8 @@ const GroupUI = (() => {
       productId: product.productId,
       productName: product.productName,
       variant: product.variant,
-      targetAmount: product.targetAmount,
-      priceSnapshot: { productId: product.productId, variant: product.variant, amount: product.targetAmount },
+      targetAmount,
+      priceSnapshot: { productId: product.productId, variant: product.variant, amount: targetAmount },
       memberCount: 1,
       contributions: [],
       messages: [{ system: true, content: text('Le groupe a été créé. Les cotisations confirmées uniquement feront progresser l’objectif.', 'The group was created. Only confirmed contributions move the target forward.') }],
@@ -177,7 +196,6 @@ const GroupUI = (() => {
     const remaining = GroupDomain.getRemaining(group.targetAmount, group.contributions || []);
     openModal(`<h2>${text('Contribuer à', 'Contribute to')} « ${escapeHTML(group.name)} »</h2>
       <p>${text('Reste à collecter', 'Remaining to collect')}: <strong>${money(remaining)}</strong>. ${text('Une cotisation déclarée ne modifie pas le total tant qu’un administrateur général ne l’a pas confirmée.', 'A declared contribution does not change the total until a site administrator confirms it.')}</p>
-      <div class="group-payment-warning"><strong>${text('Transfert Orange Money', 'Orange Money transfer')}:</strong> ${text('les coordonnées sensibles ne sont jamais incluses dans ce site statique. En production, elles sont affichées uniquement après une session vérifiée et l’acceptation dans le groupe. Ne partagez jamais votre code PIN.', 'sensitive payment details are never included in this static website. In production, they are displayed only after a verified session and acceptance into the group. Never share your PIN.')}</div>
       <form class="group-form" id="contributionForm" data-group-id="${group.id}">
         <label>${text('Montant envoyé', 'Amount sent')} (FCFA)<input name="amount" type="number" min="1" max="${remaining}" required></label>
         <label>${text('Numéro Orange Money de l’expéditeur', 'Sender Orange Money number')}<input name="phone" inputmode="tel" required></label>
