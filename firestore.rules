@@ -1,0 +1,41 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isAcceptedMember(groupId) {
+      return signedIn() && get(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)).data.status == 'accepted';
+    }
+    function isGeneralAdmin() {
+      return signedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['general_admin', 'payment_manager'];
+    }
+
+    match /groups/{groupId} {
+      allow get: if isAcceptedMember(groupId) || (signedIn() && resource.data.privacy == 'discoverable');
+      allow create: if signedIn() && request.resource.data.creatorId == request.auth.uid;
+      allow update, delete: if isGeneralAdmin() || (isAcceptedMember(groupId) && resource.data.creatorId == request.auth.uid);
+
+      match /members/{userId} {
+        allow read: if isAcceptedMember(groupId) || (signedIn() && userId == request.auth.uid);
+        allow create: if signedIn() && userId == request.auth.uid;
+        allow update, delete: if isGeneralAdmin() || (isAcceptedMember(groupId) && get(/databases/$(database)/documents/groups/$(groupId)).data.creatorId == request.auth.uid);
+      }
+      match /contributions/{contributionId} {
+        allow read: if isAcceptedMember(groupId);
+        allow create: if isAcceptedMember(groupId) && request.resource.data.memberId == request.auth.uid && request.resource.data.status in ['draft', 'declared'];
+        allow update, delete: if isGeneralAdmin();
+      }
+      match /messages/{messageId} {
+        allow read: if isAcceptedMember(groupId);
+        allow create: if isAcceptedMember(groupId) && request.resource.data.authorId == request.auth.uid;
+        allow update: if isGeneralAdmin() || (isAcceptedMember(groupId) && resource.data.authorId == request.auth.uid && request.time < resource.data.createdAt + duration.value(15, 'm'));
+        allow delete: if isGeneralAdmin() || (isAcceptedMember(groupId) && resource.data.authorId == request.auth.uid);
+      }
+    }
+    match /users/{userId} {
+      allow read: if signedIn() && userId == request.auth.uid;
+      allow create: if signedIn() && userId == request.auth.uid && request.resource.data.role == 'customer';
+      allow update: if signedIn() && userId == request.auth.uid && request.resource.data.role == resource.data.role;
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}

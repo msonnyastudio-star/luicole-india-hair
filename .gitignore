@@ -1,0 +1,10 @@
+node_modules/
+.codex/
+.agents/
+*.zip
+*.log
+.DS_Store
+
+# Source exports kept locally: the website uses the optimized WebP versions.
+images/catalogue/*-floute.png
+images/catalogue/*-recadre.png

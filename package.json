@@ -1,0 +1,10 @@
+{
+  "name": "luciole-india-hair",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Luciole India Hair storefront and contribution groups",
+  "scripts": {
+    "test": "node tests/group-domain.test.mjs",
+    "check": "node --check js/app.js && node --check js/group-domain.js && node --check js/groups-ui.js"
+  }
+}

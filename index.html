@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0a0a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Luciole India Hair | Vente de Greffes, Mèches & Perruques au Cameroun</title>
+  <meta name="description" content="Luciole India Hair – Découvrez nos perruques lace, bobs, textures lisses, ondulées et bouclées. Tailles, disponibilité et prix confirmés sur WhatsApp.">
+  <meta name="keywords" content="Vente de greffes au Cameroun, Greffes indiennes au Cameroun, Perruques naturelles au Cameroun, Vente de mèches à Douala, Vente de mèches à Yaoundé, Cheveux humains au Cameroun, Lace frontal au Cameroun, Closure au Cameroun, Perruques femmes Cameroun, Livraison de mèches au Cameroun, Luciole India Hair">
+  <meta name="author" content="Luciole India Hair">
+  <meta name="robots" content="index, follow">
+  
+  <!-- Open Graph -->
+  <meta property="og:title" content="Luciole India Hair | Greffes & Perruques Premium au Cameroun">
+  <meta property="og:description" content="Découvrez nos perruques lace, bobs et textures lisses, ondulées ou bouclées. Commandez facilement sur WhatsApp.">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="fr_CM">
+  <meta property="og:site_name" content="Luciole India Hair">
+  
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Luciole India Hair | Greffes & Perruques Premium">
+  <meta name="twitter:description" content="Perruques lace, bobs et textures lisses, ondulées ou bouclées. Commandez sur WhatsApp.">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="images/logo-luciole.png">
+  <link rel="apple-touch-icon" href="images/logo-luciole.png">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet"></noscript>
+  
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <!-- Language banner (appears briefly) -->
+  <div id="langBanner" class="lang-banner">
+    <div class="lang-banner-inner">
+      <span>Choisissez votre langue / Choose your language</span>
+      <div class="lang-banner-btns">
+        <button onclick="setLanguage('fr'); hideLangBanner();" class="lang-btn active">Français</button>
+        <button onclick="setLanguage('en'); hideLangBanner();" class="lang-btn">English</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <a href="#accueil" class="nav-logo">
+      <img src="images/logo-luciole.png" alt="Luciole India Hair" class="logo-img">
+      <div class="logo-text">
+        <span>Luciole</span>
+        <small>India Hair</small>
+      </div>
+    </a>
+    
+    <div class="nav-menu" id="mainMenu">
+      <a href="#accueil" data-i18n="nav-home">Accueil</a>
+      <a href="#categories" data-i18n="nav-hair">Nos cheveux</a>
+      <a href="#nos-cheveux" data-i18n="nav-wigs">Perruques</a>
+      <a href="#categories" data-i18n="nav-grafts">Greffes</a>
+      <a href="#categories" data-i18n="nav-closures">Closures & Frontals</a>
+      <a href="#groupes" data-i18n="nav-groups">Achats en groupe</a>
+      <a href="#promotions" data-i18n="nav-promo">Promotions</a>
+      <a href="#livraison" data-i18n="nav-delivery">Livraison</a>
+    </div>
+    
+    <div class="nav-actions">
+      <button class="account-btn" id="accountBtn" aria-label="Open my account">
+        <i class="fas fa-user"></i><span class="account-label">Mon espace</span>
+      </button>
+      <button class="cart-btn" id="cartBtn" aria-label="Open cart" aria-controls="cartSidebar" aria-expanded="false">
+        <i class="fas fa-shopping-bag"></i>
+        <span class="cart-count" id="cartCount" style="display:none;">0</span>
+      </button>
+      <button class="menu-toggle" aria-label="Open menu" aria-controls="mainMenu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Hero with slider -->
+  <section class="hero" id="accueil">
+    <div class="hero-slider">
+      <div class="hero-slide active">
+        <img src="images/hero-cover.jpg" alt="Luciole India Hair" class="hero-img hero-img-cover">
+      </div>
+      <div class="hero-slide">
+        <img src="images/hero.jpg" alt="Luciole India Hair" class="hero-img">
+      </div>
+      <div class="hero-slide">
+        <img src="images/wig-model.jpg" alt="Luciole India Hair" class="hero-img">
+      </div>
+    </div>
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <h1 data-i18n-hero-title>La beauté commence par des <span>cheveux d'exception</span></h1>
+      <p data-i18n="hero-sub">Découvrez notre sélection de greffes, mèches et perruques premium. Livraison partout au Cameroun.</p>
+      <div class="hero-buttons">
+        <a href="#categories" class="btn btn-primary" data-i18n="btn-discover">Découvrir nos collections</a>
+        <a href="javascript:void(0)" class="btn btn-secondary" onclick="openGeneralWhatsApp()">
+          <i class="fab fa-whatsapp"></i> <span data-i18n="btn-order-wa">Commander sur WhatsApp</span>
+        </a>
+      </div>
+      <div class="hero-advantages">
+        <div class="advantage-item"><i class="fas fa-gem"></i> <span data-i18n="adv1">Cheveux de qualité premium</span></div>
+        <div class="advantage-item"><i class="fas fa-truck"></i> <span data-i18n="adv2">Livraison partout au Cameroun</span></div>
+        <div class="advantage-item"><i class="fab fa-whatsapp"></i> <span data-i18n="adv3">Commande rapide sur WhatsApp</span></div>
+        <div class="advantage-item"><i class="fas fa-headset"></i> <span data-i18n="adv4">Assistance personnalisée</span></div>
+        <div class="advantage-item"><i class="fas fa-heart"></i> <span data-i18n="adv5">Produits pour tous les styles</span></div>
+      </div>
+    </div>
+    <div class="hero-dots">
+      <button class="hero-dot active" data-slide="0" aria-label="Slide 1"></button>
+      <button class="hero-dot" data-slide="1" aria-label="Slide 2"></button>
+      <button class="hero-dot" data-slide="2" aria-label="Slide 3"></button>
+    </div>
+  </section>
+
+  <!-- Video showcase -->
+  <section class="video-showcase" id="videos">
+    <div class="container">
+      <div class="video-showcase-heading">
+        <div>
+          <p class="eyebrow" data-i18n="video-eyebrow">En mouvement</p>
+          <h2 class="section-title" data-i18n="video-title">Nos modèles en vidéo</h2>
+          <p class="section-subtitle" data-i18n="video-sub">Voyez le volume, la brillance et le mouvement de nos styles avant de choisir votre coup de cœur.</p>
+        </div>
+        <a href="#nos-cheveux" class="btn btn-primary"><span data-i18n="video-catalog">Voir le catalogue</span> <i class="fas fa-arrow-right"></i></a>
+      </div>
+      <div class="video-carousel" aria-roledescription="carousel" aria-label="Vidéos promotionnelles">
+        <button class="video-carousel-btn prev" type="button" data-video-prev aria-label="Vidéo précédente"><i class="fas fa-chevron-left"></i></button>
+        <div class="video-carousel-viewport" id="videoCarouselViewport" tabindex="0">
+          <div class="video-carousel-track">
+            <article class="video-promo-card">
+              <div class="video-frame">
+                <video controls muted playsinline preload="metadata" poster="images/catalogue/modele-7.jpg">
+                  <source src="media/luciole-promo-1.mp4" type="video/mp4">
+                  <span data-i18n="video-unsupported">Votre navigateur ne peut pas lire cette vidéo.</span>
+                </video>
+                <span class="video-label"><i class="fas fa-play"></i> <span data-i18n="video-label">Look en vidéo</span></span>
+              </div>
+              <div class="video-promo-copy video-story-copy">
+                <div class="video-story-topline"><span class="video-story-live"><i class="fas fa-circle"></i> THE GLOW EDIT</span><span>01 / 06</span></div>
+                <div class="video-story-rotator" data-video-story aria-live="polite">
+                  <p class="video-story-kicker">BEAUTÉ • CONFIANCE • SORORITÉ</p>
+                  <h3>Ta beauté n’a pas besoin d’autorisation.</h3>
+                  <p class="video-story-text">Fais de ta couronne une signature. Tu es déjà la lumière du plan.</p>
+                </div>
+                <div class="video-story-equalizer" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+              </div>
+            </article>
+            <article class="video-promo-card">
+              <div class="video-frame">
+                <video controls muted playsinline preload="metadata" poster="images/catalogue/modele-17.jpg">
+                  <source src="media/luciole-promo-2.mp4" type="video/mp4">
+                  <span data-i18n="video-unsupported">Votre navigateur ne peut pas lire cette vidéo.</span>
+                </video>
+                <span class="video-label"><i class="fas fa-play"></i> <span data-i18n="video-label">Look en vidéo</span></span>
+              </div>
+              <div class="video-promo-copy video-story-copy">
+                <div class="video-story-topline"><span class="video-story-live"><i class="fas fa-circle"></i> THE GLOW EDIT</span><span>01 / 06</span></div>
+                <div class="video-story-rotator" data-video-story aria-live="polite">
+                  <p class="video-story-kicker">BEAUTÉ • CONFIANCE • SORORITÉ</p>
+                  <h3>Ta beauté n’a pas besoin d’autorisation.</h3>
+                  <p class="video-story-text">Fais de ta couronne une signature. Tu es déjà la lumière du plan.</p>
+                </div>
+                <div class="video-story-equalizer" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+              </div>
+            </article>
+          </div>
+        </div>
+        <button class="video-carousel-btn next" type="button" data-video-next aria-label="Vidéo suivante"><i class="fas fa-chevron-right"></i></button>
+      </div>
+      <div class="video-carousel-dots" aria-label="Choisir une vidéo">
+        <button class="active" type="button" data-video-dot="0" aria-label="Vidéo 1"></button>
+        <button type="button" data-video-dot="1" aria-label="Vidéo 2"></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Private contribution groups -->
+  <section class="groups" id="groupes">
+    <div class="container">
+      <div class="groups-heading">
+        <div>
+          <p class="eyebrow" data-i18n="groups-eyebrow">La communauté Luciole</p>
+          <h2 class="section-title" data-i18n="groups-title">On se retrouve, on cotise, on brille ✨</h2>
+          <p class="section-subtitle" data-i18n="groups-sub">Créez un petit groupe avec votre famille, vos amis ou vos proches pour financer ensemble un modèle précis. Un espace simple, privé et joyeux.</p>
+        </div>
+        <button class="btn btn-primary" id="createGroupBtn"><i class="fas fa-users"></i> <span data-i18n="groups-create">Créer un groupe</span></button>
+      </div>
+      <p class="group-safety"><i class="fas fa-shield-heart"></i> <span data-i18n="groups-safety">Pour votre sécurité, créez ou rejoignez principalement des groupes composés de personnes que vous connaissez et en qui vous avez confiance.</span></p>
+      <div id="groupsAuthPrompt" class="groups-auth-prompt">
+        <div>
+          <h3 data-i18n="groups-prompt-title">Votre cercle Luciole vous attend 💬</h3>
+          <p data-i18n="groups-prompt-text">Connectez-vous pour créer un groupe, suivre les cotisations et échanger avec vos proches en toute simplicité.</p>
+        </div>
+        <button class="btn btn-outline" data-group-auth><i class="fas fa-right-to-bracket"></i> <span data-i18n="groups-login">Se connecter</span></button>
+      </div>
+      <div id="groupsDashboard" class="groups-dashboard" hidden>
+        <div class="dashboard-tabs" role="tablist" aria-label="Espace groupes">
+          <button class="active" type="button" data-i18n="groups-my">Mes groupes</button>
+          <button type="button" data-i18n="groups-invites">Invitations</button>
+          <button type="button" data-i18n="groups-contributions">Mes cotisations</button>
+          <button type="button" data-i18n="groups-notifications">Notifications</button>
+        </div>
+        <div id="groupsGrid" class="groups-grid"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Categories -->
+  <section class="categories" id="categories">
+    <div class="container">
+      <p class="eyebrow texture-eyebrow" data-i18n="textures-eyebrow">Choisis ton mood</p>
+      <h2 class="section-title" data-i18n="textures-title">Textures & styles qui font plaisir</h2>
+      <p class="section-subtitle" data-i18n="textures-sub">Lisse, bouclé, body wave ou bob : explorez les textures selon votre envie du jour.</p>
+      <div class="categories-grid" id="categoriesGrid"></div>
+    </div>
+  </section>
+
+  <!-- Products Catalog -->
+  <section class="products" id="nos-cheveux">
+    <div class="container">
+      <h2 class="section-title" data-i18n="catalog-title">Notre Catalogue</h2>
+      <p class="section-subtitle" data-i18n="catalog-sub">Perruques lace, bobs et textures à choisir selon votre style.</p>
+      
+      <div class="products-toolbar">
+        <div class="search-box">
+          <i class="fas fa-search" style="color:#c9a227;"></i>
+          <input type="text" id="searchInput" placeholder="Rechercher un produit..." data-i18n-placeholder="search-placeholder">
+        </div>
+        <div class="filters">
+          <select id="filterType">
+            <option value="">Type</option>
+            <option value="lace">Perruque lace</option>
+            <option value="court">Coupe courte / bob</option>
+            <option value="perruque">Tous les modèles</option>
+          </select>
+          <select id="filterTexture">
+            <option value="">Texture</option>
+            <option value="lisse">Lisse</option>
+            <option value="ondulé">Ondulé</option>
+            <option value="bouclé">Bouclé</option>
+          </select>
+          <select id="filterColor">
+            <option value="">Couleur</option>
+            <option value="noir">Noir naturel</option>
+            <option value="brun">Brun / Chocolat</option>
+            <option value="bordeaux">Bordeaux</option>
+            <option value="miel">Miel doré</option>
+          </select>
+          <select id="filterLength">
+            <option value="">Longueur</option>
+            <option value="6">6 pouces</option>
+            <option value="8">8 pouces</option>
+            <option value="10">10 pouces</option>
+            <option value="12">12 pouces</option>
+            <option value="14">14 pouces</option>
+            <option value="16">16 pouces</option>
+            <option value="18">18 pouces</option>
+            <option value="20">20 pouces</option>
+            <option value="22">22 pouces</option>
+            <option value="24">24 pouces</option>
+            <option value="26">26 pouces</option>
+            <option value="28">28 pouces</option>
+            <option value="30">30 pouces</option>
+          </select>
+          <select id="filterPrice">
+            <option value="">Prix</option>
+            <option value="0-30000">Moins de 30 000</option>
+            <option value="30000-50000">30 000 – 50 000</option>
+            <option value="50000-100000">50 000 – 100 000</option>
+            <option value="100000+">Plus de 100 000</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="products-grid" id="productsGrid"></div>
+    </div>
+  </section>
+
+  <!-- Promotions -->
+  <section class="promotions" id="promotions">
+    <div class="container">
+      <h2 class="section-title" data-i18n="promo-title">Promotions & Offres</h2>
+      <p class="section-subtitle" data-i18n="promo-sub">Profitez de nos offres exclusives et faites-vous livrer partout au Cameroun.</p>
+      
+      <div class="promo-grid">
+        <div class="promo-card">
+          <span class="promo-badge">-15%</span>
+          <h3 data-i18n="promo-1-title">Pack 3 Greffes + Closure</h3>
+          <p data-i18n="promo-1-text">Économisez sur l'achat groupé. 3 greffes indiennes lisses + 1 closure 4x4. Qualité premium garantie.</p>
+          <a href="#nos-cheveux" class="btn btn-primary btn-sm" data-i18n="promo-1-action">Voir l'offre</a>
+        </div>
+        <div class="promo-card">
+          <span class="promo-badge" data-i18n="badge-new">Nouveau</span>
+          <h3 data-i18n="promo-2-title">Perruques Lace Frontal</h3>
+          <p data-i18n="promo-2-text">Découvrez notre nouvelle collection de perruques lace frontal ultra réalistes. Aspect naturel garanti.</p>
+          <a href="#nos-cheveux" class="btn btn-primary btn-sm" data-i18n="promo-2-action">Découvrir</a>
+        </div>
+        <div class="promo-card">
+          <span class="promo-badge" data-i18n="badge-best">Meilleure vente</span>
+          <h3 data-i18n="promo-3-title">Greffes Indiennes Lisses</h3>
+          <p data-i18n="promo-3-text">Le best-seller de la boutique. Texture soyeuse, brillance exceptionnelle. Disponible de 12 à 24 pouces.</p>
+          <a href="#nos-cheveux" class="btn btn-primary btn-sm" data-i18n="order">Commander</a>
+        </div>
+        <div class="promo-card">
+          <span class="promo-badge" data-i18n="badge-limited">Offre limitée</span>
+          <h3 data-i18n="promo-4-title">Mèches Colorées Ombré</h3>
+          <p data-i18n="promo-4-text">Apportez de la lumière à votre coiffure avec nos mèches ombré blonde. Stock limité.</p>
+          <a href="#nos-cheveux" class="btn btn-primary btn-sm" data-i18n="promo-4-action">Profiter</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Delivery -->
+  <section class="delivery" id="livraison">
+    <div class="container">
+      <h2 class="section-title" data-i18n="delivery-title">Livraison partout au Cameroun</h2>
+      <p class="section-subtitle" data-i18n="delivery-sub">Nous livrons vos commandes dans toutes les régions du pays.</p>
+      
+      <div class="delivery-content">
+        <div class="delivery-text">
+          <p>« Luciole India Hair livre vos commandes dans toutes les régions du Cameroun. Les délais et frais de livraison sont confirmés sur WhatsApp selon votre ville et votre quartier. »</p>
+          <p>Que vous soyez à Douala, Yaoundé ou dans une ville plus éloignée, nous organisons la livraison de vos greffes, mèches et perruques avec soin.</p>
+          <div class="cities-grid">
+            <div class="city-tag">Douala</div>
+            <div class="city-tag">Yaoundé</div>
+            <div class="city-tag">Bafoussam</div>
+            <div class="city-tag">Bamenda</div>
+            <div class="city-tag">Garoua</div>
+            <div class="city-tag">Maroua</div>
+            <div class="city-tag">Ngaoundéré</div>
+            <div class="city-tag">Bertoua</div>
+            <div class="city-tag">Ebolowa</div>
+            <div class="city-tag">Kribi</div>
+            <div class="city-tag">Limbé</div>
+            <div class="city-tag">Buéa</div>
+            <div class="city-tag">Kumba</div>
+            <div class="city-tag" data-i18n="delivery-all-cities">+ toutes les villes</div>
+          </div>
+        </div>
+        <div class="delivery-visual">
+          <i class="fas fa-shipping-fast"></i>
+          <h3 style="color:var(--gold);margin-bottom:12px;">Livraison sécurisée</h3>
+          <p style="opacity:0.8;margin-bottom:20px;">Vos produits sont emballés avec soin et suivis jusqu'à votre porte.</p>
+          <a href="javascript:void(0)" class="btn btn-primary" onclick="openGeneralWhatsApp()">
+            <i class="fab fa-whatsapp"></i> Demander un devis livraison
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Yaoundé partner -->
+  <section class="partner" id="partenaire-yaounde">
+    <div class="container partner-content">
+      <div class="partner-photo-wrap">
+        <img src="images/partenaire-yaounde.png" alt="Beng Ndongo Hermine Virginie, partenaire Luciole India Hair à Yaoundé" class="partner-photo" loading="lazy" decoding="async" width="1122" height="1402">
+        <span class="partner-city"><i class="fas fa-location-dot"></i> Yaoundé</span>
+      </div>
+      <div class="partner-copy">
+        <p class="eyebrow" data-i18n="partner-eyebrow">Une présence locale</p>
+        <h2 data-i18n="partner-title">Notre partenaire à Yaoundé</h2>
+        <h3>Beng Ndongo Hermine Virginie</h3>
+        <p data-i18n="partner-p1">Pour mieux accompagner notre clientèle à Yaoundé, Beng Ndongo Hermine Virginie représente Luciole India Hair avec disponibilité, écoute et professionnalisme.</p>
+        <p data-i18n="partner-p2">Elle est votre interlocutrice de proximité pour vous orienter, répondre à vos questions et faciliter le suivi de vos demandes dans la ville de Yaoundé.</p>
+        <p class="partner-reassurance"><i class="fas fa-shield-heart"></i> <span data-i18n="partner-reassurance">Vous bénéficiez du même accompagnement attentif et des mêmes exigences de qualité que partout chez Luciole India Hair.</span></p>
+        <div class="partner-actions">
+          <a href="tel:+237640820476" class="btn btn-outline"><i class="fas fa-phone"></i> +237 6 40 82 04 76</a>
+          <a href="javascript:void(0)" class="btn btn-primary" onclick="openGeneralWhatsApp()"><i class="fab fa-whatsapp"></i> <span data-i18n="btn-contact">Nous contacter</span></a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Testimonials -->
+  <section class="testimonials" id="temoignages">
+    <div class="container">
+      <h2 class="section-title" data-i18n="testimonials-title">Avis de nos clientes</h2>
+      <p class="section-subtitle" data-i18n="testimonials-sub">Des femmes du Cameroun entier nous font confiance.</p>
+      <div class="testimonials-grid" id="testimonialsGrid"></div>
+      <div style="text-align:center;margin-top:32px;">
+        <a href="javascript:void(0)" class="btn btn-whatsapp" onclick="openGeneralWhatsApp()">
+          <i class="fab fa-whatsapp"></i> <span data-i18n="btn-share">Partager mon expérience</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="faq" id="faq">
+    <div class="container">
+      <h2 class="section-title" data-i18n="faq-title">Foire aux questions</h2>
+      <p class="section-subtitle" data-i18n="faq-sub">Tout ce que vous devez savoir avant de commander.</p>
+      <div class="faq-list" id="faqList"></div>
+    </div>
+  </section>
+
+  <!-- About: intentionally placed near the footer -->
+  <section class="about" id="a-propos">
+    <div class="container">
+      <h2 class="section-title" data-i18n="about-title">À propos de Luciole India Hair</h2>
+      <div class="about-content">
+        <p>Luciole India Hair est une boutique camerounaise spécialisée dans la vente de cheveux, greffes, mèches et perruques de qualité. Notre mission est d'aider chaque femme à trouver une coiffure adaptée à son style, à son budget et à sa personnalité. Nous proposons un accompagnement personnalisé et une livraison dans tout le Cameroun.</p>
+        <p style="margin-top:20px;">Chaque produit est sélectionné avec exigence pour garantir authenticité, douceur et longévité. Que vous recherchiez des greffes indiennes, brésiliennes, des closures, des frontals ou une perruque prête à porter, nous sommes à votre écoute sur WhatsApp pour vous conseiller.</p>
+        <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:24px;">
+          <a href="javascript:void(0)" class="btn btn-primary" onclick="openGeneralWhatsApp()"><i class="fab fa-whatsapp"></i> <span data-i18n="btn-contact">Nous contacter</span></a>
+          <a href="https://www.facebook.com/share/1E95womsYN/?mibextid=wwXIfr" target="_blank" rel="noopener" class="btn btn-outline"><i class="fab fa-facebook"></i> Facebook</a>
+          <a href="https://www.tiktok.com/@luciole_india_hair?_r=1&_t=ZN-98Jy1WyrUU2" target="_blank" rel="noopener" class="btn btn-outline"><i class="fab fa-tiktok"></i> TikTok</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <!-- Promo web design -->
+  <section class="web-promo">
+    <div class="container">
+      <div class="web-promo-inner">
+        <div class="web-promo-text">
+          <h3>Besoin d’un site web professionnel ?</h3>
+          <p>Vous aussi, créez une boutique en ligne élégante et moderne comme Luciole India Hair. Contactez-nous pour un site sur mesure.</p>
+        </div>
+        <a href="https://wa.me/237699958089?text=Bonjour%20Luciole%20Services%2C%20je%20souhaite%20avoir%20un%20site%20web%20professionnel." target="_blank" rel="noopener" class="btn btn-whatsapp web-promo-btn">
+          <i class="fab fa-whatsapp"></i> Contacter Luciole Services
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+            <img src="images/logo-luciole.png" alt="Luciole India Hair" style="height:52px;width:auto;border-radius:50%;">
+            <h3 style="margin:0;">Luciole India Hair</h3>
+          </div>
+          <p>Vente de greffes, mèches, extensions et perruques au Cameroun. Qualité premium, livraison nationale, service personnalisé sur WhatsApp.</p>
+          <div class="footer-contact">
+            <p><i class="fab fa-whatsapp"></i> +237 654 470 561</p>
+            <p><i class="fas fa-envelope"></i> livraison@luciole-serves.online</p>
+            <p><i class="fas fa-headset"></i> support@luciole-serves.online</p>
+            <p><i class="fab fa-facebook"></i> <a href="https://www.facebook.com/share/1E95womsYN/?mibextid=wwXIfr" target="_blank" rel="noopener" style="color:inherit;">Facebook</a></p>
+            <p><i class="fab fa-tiktok"></i> <a href="https://www.tiktok.com/@luciole_india_hair?_r=1&_t=ZN-98Jy1WyrUU2" target="_blank" rel="noopener" style="color:inherit;">TikTok</a></p>
+            <p><i class="fas fa-map-marker-alt"></i> Livraison dans tout le Cameroun</p>
+          </div>
+        </div>
+        <div>
+          <h4 data-i18n="nav-label">Navigation</h4>
+          <div class="footer-links">
+            <a href="#accueil" data-i18n="nav-home">Accueil</a>
+            <a href="#categories" data-i18n="nav-products">Nos produits</a>
+            <a href="#promotions" data-i18n="nav-promo">Promotions</a>
+            <a href="#livraison" data-i18n="nav-delivery">Livraison</a>
+            <a href="#a-propos" data-i18n="nav-about">À propos</a>
+          </div>
+        </div>
+        <div>
+          <h4 data-i18n="info-label">Informations</h4>
+          <div class="footer-links">
+            <a href="#faq" data-i18n="faq-label">FAQ</a>
+            <a href="#temoignages" data-i18n="testimonials-label">Témoignages</a>
+            <a href="javascript:void(0)" data-i18n="privacy" onclick="showLegal('privacy')">Politique de confidentialité</a>
+            <a href="javascript:void(0)" data-i18n="terms" onclick="showLegal('terms')">Conditions générales de vente</a>
+          </div>
+        </div>
+        <div>
+          <h4 data-i18n="contact-label">Contact</h4>
+          <div class="footer-links">
+            <a href="javascript:void(0)" onclick="openGeneralWhatsApp()"><i class="fab fa-whatsapp"></i> WhatsApp</a>
+            <a href="https://www.facebook.com/share/1E95womsYN/?mibextid=wwXIfr" target="_blank" rel="noopener"><i class="fab fa-facebook"></i> Facebook</a>
+            <a href="https://www.tiktok.com/@luciole_india_hair?_r=1&_t=ZN-98Jy1WyrUU2" target="_blank" rel="noopener"><i class="fab fa-tiktok"></i> TikTok</a>
+            <a href="mailto:livraison@luciole-serves.online"><i class="fas fa-envelope"></i> Livraison</a>
+            <a href="mailto:support@luciole-serves.online"><i class="fas fa-headset"></i> Support</a>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <div class="lang-switcher-bottom">
+          <button onclick="setLanguage('fr')" class="lang-btn" data-lang="fr">FR</button>
+          <button onclick="setLanguage('en')" class="lang-btn" data-lang="en">EN</button>
+        </div>
+        <span>© Luciole India Hair — <span data-i18n="rights">Tous droits réservés</span>.</span>
+        <a href="admin/index.html" style="opacity:0.35;font-size:0.75rem;margin-left:12px;">Admin</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Product Modal -->
+  <div class="modal" id="productModal">
+    <div class="modal-content">
+      <button class="modal-close" id="modalClose"><i class="fas fa-times"></i></button>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <!-- Cart Sidebar -->
+  <div class="cart-overlay" id="cartOverlay"></div>
+  <aside class="cart-sidebar" id="cartSidebar" role="dialog" aria-modal="true" aria-labelledby="cartTitle" aria-hidden="true" tabindex="-1">
+    <div class="cart-header">
+          <h3 id="cartTitle"><i class="fas fa-shopping-bag"></i> <span data-i18n="cart-title">Mon Panier</span></h3>
+      <button class="cart-close" id="cartClose" aria-label="Fermer le panier"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="cart-items" id="cartItems"></div>
+    <div class="cart-footer">
+      <div class="cart-summary">
+        <div class="cart-summary-row">
+          <span data-i18n="cart-subtotal">Sous-total</span>
+          <span id="cartSubtotal">0 FCFA</span>
+        </div>
+        <div class="cart-summary-row">
+          <span data-i18n="cart-delivery-fee">Frais de livraison</span>
+          <span data-i18n="cart-delivery-confirm">À confirmer selon la ville</span>
+        </div>
+        <div class="cart-summary-row total">
+          <span data-i18n="cart-total">Total provisoire</span>
+          <span id="cartTotal">0 FCFA</span>
+        </div>
+      </div>
+      <div class="cart-city">
+        <label for="cartCity" data-i18n="cart-city-label">Votre ville de livraison</label>
+        <input type="text" id="cartCity" data-i18n-placeholder="cart-city-placeholder" placeholder="Ex : Douala, Yaoundé, Bafoussam...">
+      </div>
+      <button class="btn btn-whatsapp" style="width:100%;" onclick="finalizeOrderWhatsApp()">
+        <i class="fab fa-whatsapp"></i> <span data-i18n="cart-finalize">Finaliser ma commande sur WhatsApp</span>
+      </button>
+    </div>
+  </aside>
+  <div class="group-modal" id="groupModal" aria-hidden="true"></div>
+  <!-- Floating WhatsApp -->
+  <a href="javascript:void(0)" class="floating-whatsapp" onclick="openGeneralWhatsApp()" aria-label="WhatsApp">
+    <i class="fab fa-whatsapp"></i>
+  </a>
+
+  <!-- Scripts -->
+  <script src="js/products.js" defer></script>
+  <script src="js/app.js" defer></script>
+  <script type="module" src="js/firebase-client.js"></script>
+  <script src="js/group-domain.js" defer></script>
+  <script src="js/groups-ui.js" defer></script>
+</body>
+</html>

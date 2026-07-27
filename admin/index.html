@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Administration | Luciole India Hair</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <style>
+    .admin-login {
+      max-width: 400px;
+      margin: 100px auto;
+      background: white;
+      padding: 40px;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    .admin-login h1 {
+      font-family: 'Playfair Display', serif;
+      color: #c9a227;
+      margin-bottom: 8px;
+    }
+    .admin-login p { color: #6b6b6b; margin-bottom: 24px; }
+    .admin-login input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid #e8e0d4;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 1rem;
+    }
+    .admin-panel { display: none; }
+    .admin-panel.active { display: block; }
+    .product-img-thumb { width: 50px; height: 50px; object-fit: cover; border-radius: 6px; }
+    .btn-danger { background: #e63946; color: white; }
+    .btn-danger:hover { background: #c1121f; }
+    .admin-actions { display: flex; gap: 8px; }
+  </style>
+</head>
+<body class="admin-page">
+  <!-- Login -->
+  <div class="admin-login" id="loginScreen">
+    <h1>Luciole India Hair</h1>
+    <p>Espace d'administration</p>
+    <input type="password" id="adminPassword" placeholder="Mot de passe" onkeypress="if(event.key==='Enter')login()">
+    <button class="btn btn-primary" style="width:100%;" onclick="login()">Se connecter</button>
+    <p style="margin-top:16px;font-size:0.8rem;opacity:0.6;">Mot de passe par défaut : luciole2024</p>
+    <a href="../index.html" style="display:inline-block;margin-top:20px;color:#c9a227;font-size:0.9rem;">← Retour au site</a>
+  </div>
+
+  <!-- Admin Panel -->
+  <div class="admin-panel" id="adminPanel">
+    <div class="admin-header">
+      <div>
+        <h1 style="font-family:'Playfair Display',serif;color:#c9a227;">Administration</h1>
+        <p style="color:#6b6b6b;">Gérez vos produits, prix et promotions</p>
+      </div>
+      <div style="display:flex;gap:12px;">
+        <a href="../index.html" class="btn btn-outline btn-sm">Voir le site</a>
+        <button class="btn btn-outline btn-sm" onclick="logout()">Déconnexion</button>
+      </div>
+    </div>
+
+    <!-- Add / Edit Form -->
+    <div class="admin-form" id="productForm">
+      <h3 style="margin-bottom:20px;" id="formTitle">Ajouter un produit</h3>
+      <input type="hidden" id="editId">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Nom du produit *</label>
+          <input type="text" id="pName" required>
+        </div>
+        <div class="form-group">
+          <label>Catégorie</label>
+          <select id="pCategory">
+            <option>Greffes indiennes</option>
+            <option>Greffes brésiliennes</option>
+            <option>Greffes péruviennes</option>
+            <option>Greffes malaisiennes</option>
+            <option>Greffes vietnamiennes</option>
+            <option>Perruques naturelles</option>
+            <option>Perruques lace frontal</option>
+            <option>Closures</option>
+            <option>Frontals</option>
+            <option>Mèches colorées</option>
+            <option>Cheveux courts</option>
+            <option>Pack</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Type</label>
+          <select id="pType">
+            <option value="indienne">Indienne</option>
+            <option value="bresilienne">Brésilienne</option>
+            <option value="peruvienne">Péruvienne</option>
+            <option value="malaisienne">Malaisienne</option>
+            <option value="vietnamienne">Vietnamienne</option>
+            <option value="perruque">Perruque</option>
+            <option value="closure">Closure</option>
+            <option value="frontal">Frontal</option>
+            <option value="coloree">Colorée</option>
+            <option value="pack">Pack</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Texture</label>
+          <select id="pTexture">
+            <option value="lisse">Lisse</option>
+            <option value="ondulé">Ondulé</option>
+            <option value="bouclé">Bouclé</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Couleur</label>
+          <input type="text" id="pColor" value="noir naturel">
+        </div>
+        <div class="form-group">
+          <label>Densité</label>
+          <input type="text" id="pDensity" value="130%">
+        </div>
+        <div class="form-group">
+          <label>Poids</label>
+          <input type="text" id="pWeight" value="100g">
+        </div>
+        <div class="form-group">
+          <label>Badge</label>
+          <select id="pBadge">
+            <option value="">Aucun</option>
+            <option value="nouveau">Nouveau</option>
+            <option value="promo">Promotion</option>
+            <option value="best">Meilleure vente</option>
+            <option value="limite">Stock limité</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label>Tailles / longueurs et prix (une ligne par variante) *</label>
+          <textarea id="pVariants" placeholder="10 pouces | 45000&#10;12 pouces | 55000&#10;14 pouces | 65000"></textarea>
+          <small style="display:block;margin-top:6px;color:#6b6b6b;">Écrivez la taille puis le prix FCFA, séparés par <strong>|</strong>. Exemple : <strong>20 pouces | 85000</strong>. Laissez le prix vide si vous souhaitez le confirmer plus tard.</small>
+        </div>
+        <div class="form-group full">
+          <label>Description</label>
+          <textarea id="pDescription"></textarea>
+        </div>
+        <div class="form-group full">
+          <label>Conseils d'entretien</label>
+          <textarea id="pCare"></textarea>
+        </div>
+        <div class="form-group full">
+          <label>Photos du produit (une URL par ligne)</label>
+          <textarea id="pImages" placeholder="images/catalogue/modele-1.jpg&#10;images/catalogue/modele-1-detail.jpg"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Disponibilité</label>
+          <select id="pAvailability">
+            <option>Disponible</option>
+            <option>Stock limité</option>
+            <option>Sur commande</option>
+            <option>Prix à confirmer</option>
+            <option>Rupture de stock</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;margin-top:16px;">
+        <button class="btn btn-primary" onclick="saveProduct()">Enregistrer</button>
+        <button class="btn btn-outline" onclick="resetForm()">Annuler</button>
+      </div>
+    </div>
+
+    <!-- Products Table -->
+    <div class="admin-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Image</th>
+            <th>Nom</th>
+            <th>Catégorie</th>
+            <th>Prix min</th>
+            <th>Badge</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="adminTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="../js/products.js"></script>
+  <script>
+    const ADMIN_PASS = 'luciole2024';
+
+    function copyCatalog(products) {
+      return products.map(product => ({
+        ...product,
+        lengths: product.lengths.map(length => ({ ...length })),
+        images: [...product.images]
+      }));
+    }
+
+    function loadAdminProducts() {
+      const saved = JSON.parse(localStorage.getItem('luciole_products') || 'null');
+      if (localStorage.getItem('luciole_catalog_version') !== CATALOG_VERSION || !Array.isArray(saved)) {
+        const catalog = copyCatalog(PRODUCTS);
+        localStorage.setItem('luciole_products', JSON.stringify(catalog));
+        localStorage.setItem('luciole_catalog_version', CATALOG_VERSION);
+        return catalog;
+      }
+      return saved;
+    }
+
+    let products = loadAdminProducts();
+
+    function saveProducts() {
+      localStorage.setItem('luciole_products', JSON.stringify(products));
+      localStorage.setItem('luciole_catalog_version', CATALOG_VERSION);
+    }
+
+    function priceLabel(price) {
+      const amount = Number(price);
+      return amount > 0 ? `${new Intl.NumberFormat('fr-FR').format(amount)} FCFA` : 'À renseigner';
+    }
+
+    function parseVariants(input) {
+      return input.split('\n').map(line => line.trim()).filter(Boolean).map(line => {
+        const [rawLength, rawPrice = ''] = line.split('|');
+        let length = rawLength.trim();
+        if (/^\d+$/.test(length)) length += ' pouces';
+        const digits = rawPrice.replace(/\D/g, '');
+        return { length, price: digits ? Number(digits) : 0 };
+      }).filter(variant => variant.length);
+    }
+
+    function login() {
+      const pass = document.getElementById('adminPassword').value;
+      if (pass === ADMIN_PASS) {
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('adminPanel').classList.add('active');
+        renderAdminTable();
+      } else {
+        alert('Mot de passe incorrect');
+      }
+    }
+
+    function logout() {
+      document.getElementById('adminPanel').classList.remove('active');
+      document.getElementById('loginScreen').style.display = 'block';
+      document.getElementById('adminPassword').value = '';
+    }
+
+    function renderAdminTable() {
+      const tbody = document.getElementById('adminTableBody');
+      tbody.innerHTML = products.map(p => {
+        const priced = p.lengths.map(l => Number(l.price)).filter(price => price > 0);
+        const minPrice = priced.length ? Math.min(...priced) : 0;
+        return `
+          <tr>
+            <td><img src="../${p.images[0]}" class="product-img-thumb" onerror="this.src='../images/hair-straight.jpg'"></td>
+            <td><strong>${p.name}</strong><br><small style="color:#6b6b6b;">#${p.id}</small></td>
+            <td>${p.category}</td>
+            <td>${priceLabel(minPrice)}</td>
+            <td>${p.badge || '—'}</td>
+            <td class="admin-actions">
+              <button class="btn btn-outline btn-sm" onclick="editProduct(${p.id})"><i class="fas fa-edit"></i></button>
+              <button class="btn btn-danger btn-sm" onclick="deleteProduct(${p.id})"><i class="fas fa-trash"></i></button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function saveProduct() {
+      const id = document.getElementById('editId').value;
+      const name = document.getElementById('pName').value.trim();
+      if (!name) { alert('Le nom est obligatoire'); return; }
+
+      const lengths = parseVariants(document.getElementById('pVariants').value);
+      if (!lengths.length) { alert('Ajoutez au moins une taille / longueur.'); return; }
+      const images = document.getElementById('pImages').value.split('\n').map(image => image.trim()).filter(Boolean);
+
+      const product = {
+        id: id ? parseInt(id) : Date.now(),
+        name,
+        type: document.getElementById('pType').value,
+        texture: document.getElementById('pTexture').value,
+        color: document.getElementById('pColor').value,
+        category: document.getElementById('pCategory').value,
+        lengths,
+        density: document.getElementById('pDensity').value,
+        weight: document.getElementById('pWeight').value,
+        description: document.getElementById('pDescription').value,
+        care: document.getElementById('pCare').value || 'Lavez avec un shampooing doux. Hydratez régulièrement.',
+        delivery: '3-7 jours selon la ville',
+        availability: document.getElementById('pAvailability').value,
+        badge: document.getElementById('pBadge').value || null,
+        images: images.length ? images : ['images/catalogue/modele-2.jpg'],
+        promo: document.getElementById('pBadge').value === 'promo',
+        promoPrice: null
+      };
+
+      if (id) {
+        const idx = products.findIndex(p => p.id === parseInt(id));
+        if (idx !== -1) products[idx] = product;
+      } else {
+        products.push(product);
+      }
+
+      saveProducts();
+      renderAdminTable();
+      resetForm();
+      alert('Produit enregistré avec succès !');
+    }
+
+    function editProduct(id) {
+      const p = products.find(x => x.id === id);
+      if (!p) return;
+      document.getElementById('formTitle').textContent = 'Modifier le produit';
+      document.getElementById('editId').value = p.id;
+      document.getElementById('pName').value = p.name;
+      document.getElementById('pCategory').value = p.category;
+      document.getElementById('pType').value = p.type;
+      document.getElementById('pTexture').value = p.texture;
+      document.getElementById('pColor').value = p.color;
+      document.getElementById('pDensity').value = p.density;
+      document.getElementById('pWeight').value = p.weight;
+      document.getElementById('pBadge').value = p.badge || '';
+      document.getElementById('pVariants').value = p.lengths.map(l => `${l.length} | ${l.price || ''}`).join('\n');
+      document.getElementById('pDescription').value = p.description;
+      document.getElementById('pCare').value = p.care;
+      document.getElementById('pImages').value = p.images.join('\n');
+      document.getElementById('pAvailability').value = p.availability;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function deleteProduct(id) {
+      if (!confirm('Supprimer ce produit ?')) return;
+      products = products.filter(p => p.id !== id);
+      saveProducts();
+      renderAdminTable();
+    }
+
+    function resetForm() {
+      document.getElementById('formTitle').textContent = 'Ajouter un produit';
+      document.getElementById('editId').value = '';
+      document.getElementById('pName').value = '';
+      document.getElementById('pDescription').value = '';
+      document.getElementById('pCare').value = '';
+      document.getElementById('pVariants').value = '';
+      document.getElementById('pImages').value = '';
+      document.getElementById('pBadge').value = '';
+    }
+  </script>
+</body>
+</html>
