@@ -270,6 +270,7 @@ const GroupUI = (() => {
   function init() {
     bindEvents();
     window.addEventListener('firebase-auth-state', (event) => applyFirebaseUser(event.detail));
+    window.addEventListener('firebase-auth-error', (event) => firebaseError(event.detail));
     render();
   }
   return { init, openCreateForProduct, showAuth, render };

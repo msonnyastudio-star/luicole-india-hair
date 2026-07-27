@@ -3,9 +3,11 @@ import {
   getAuth,
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
+  getRedirectResult,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
   signOut,
   updateProfile
 } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js';
@@ -38,6 +40,20 @@ const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp);
 const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: 'select_account' });
+
+function friendlyAuthError(error) {
+  const origin = window.location.hostname;
+  const messages = {
+    'auth/unauthorized-domain': `Ce domaine (${origin}) n’est pas encore autorisé dans Firebase. Ajoutez-le dans Authentication → Settings → Authorized domains.`,
+    'auth/operation-not-allowed': 'La connexion Google n’est pas activée dans Firebase Authentication. Activez Google dans Sign-in method.',
+    'auth/popup-blocked': 'La fenêtre Google a été bloquée par le navigateur. Autorisez les pop-ups puis réessayez.',
+    'auth/popup-closed-by-user': 'La fenêtre de connexion a été fermée avant la fin.',
+    'auth/network-request-failed': 'La connexion réseau a échoué. Vérifiez votre connexion puis réessayez.',
+    'auth/account-exists-with-different-credential': 'Un compte existe déjà avec cette adresse. Connectez-vous d’abord avec son moyen de connexion habituel.'
+  };
+  return new Error(messages[error?.code] || 'La connexion Google a échoué. Réessayez ou utilisez votre e-mail.');
+}
 
 function notifyAuthState(user) {
   window.dispatchEvent(new CustomEvent('firebase-auth-state', {
@@ -54,7 +70,14 @@ function notifyAuthState(user) {
 }
 
 async function signInWithGoogle() {
-  return signInWithPopup(auth, googleProvider);
+  const isMobile = window.matchMedia('(max-width: 768px)').matches;
+  try {
+    // Firebase recommends redirect on mobile because pop-ups are often blocked there.
+    if (isMobile) return await signInWithRedirect(auth, googleProvider);
+    return await signInWithPopup(auth, googleProvider);
+  } catch (error) {
+    throw friendlyAuthError(error);
+  }
 }
 
 async function signInWithEmail(email, password, createAccount = false, displayName = '') {
@@ -66,18 +89,29 @@ async function signInWithEmail(email, password, createAccount = false, displayNa
 }
 
 onAuthStateChanged(auth, async (user) => {
-  if (user) {
-    const userRef = doc(db, 'users', user.uid);
-    const existingUser = await getDoc(userRef);
-    const profile = {
-      displayName: user.displayName || user.email || 'Membre Luciole',
-      email: user.email || null,
-      updatedAt: serverTimestamp()
-    };
-    if (!existingUser.exists()) profile.role = 'customer';
-    await setDoc(userRef, profile, { merge: true });
+  try {
+    if (user) {
+      const userRef = doc(db, 'users', user.uid);
+      const existingUser = await getDoc(userRef);
+      const profile = {
+        displayName: user.displayName || user.email || 'Membre Luciole',
+        email: user.email || null,
+        updatedAt: serverTimestamp()
+      };
+      if (!existingUser.exists()) profile.role = 'customer';
+      await setDoc(userRef, profile, { merge: true });
+    }
+  } catch (error) {
+    // Auth must still open the private interface even if Firestore is temporarily unavailable.
+    console.warn('Firebase profile synchronization failed:', error);
+  } finally {
+    notifyAuthState(user);
   }
-  notifyAuthState(user);
+});
+
+// Complete a Google sign-in that was started with the mobile redirect flow.
+getRedirectResult(auth).catch((error) => {
+  if (error?.code) window.dispatchEvent(new CustomEvent('firebase-auth-error', { detail: friendlyAuthError(error) }));
 });
 
 async function createContributionGroup(group, user) {
