@@ -16,7 +16,14 @@ const GroupUI = (() => {
   const saveGroups = (groups) => localStorage.setItem(GROUPS_KEY, JSON.stringify(groups));
   const modal = () => document.getElementById('groupModal');
   const createId = (prefix) => window.crypto?.randomUUID?.() || `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  const firebaseError = (error) => showToast(error?.message || text('Une erreur de connexion est survenue.', 'A connection error occurred.'));
+  const firebaseError = (error) => {
+    const messages = {
+      'permission-denied': text('Accès Firestore refusé. Vérifiez que les règles Firestore ont été déployées pour ce projet Firebase.', 'Firestore access was denied. Check that the Firestore rules have been deployed to this Firebase project.'),
+      'unavailable': text('Firestore est momentanément indisponible. Vérifiez votre connexion puis réessayez.', 'Firestore is temporarily unavailable. Check your connection and try again.'),
+      'unauthenticated': text('Votre session a expiré. Connectez-vous à nouveau avant de continuer.', 'Your session has expired. Sign in again before continuing.')
+    };
+    showToast(messages[error?.code] || error?.message || text('Une erreur de connexion est survenue.', 'A connection error occurred.'));
+  };
 
   function openModal(content) {
     const element = modal();
