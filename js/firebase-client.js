@@ -195,6 +195,12 @@ async function createContributionGroup(group, user) {
     groupId: group.id,
     groupName: group.name,
     creatorId: user.id,
+    productId: group.productId || null,
+    productName: group.productName || 'Greffe sélectionnée',
+    variant: group.variant || '',
+    targetAmount: group.targetAmount || 0,
+    beneficiary: group.beneficiary || '',
+    privacy: group.privacy || 'private',
     createdAt: serverTimestamp()
   });
   await batch.commit();
@@ -267,46 +273,69 @@ async function joinContributionGroup(inviteCode, user) {
     throw error;
   }
   const invite = inviteSnapshot.data();
-  let groupSummary = {};
+
+  // Build group summary from invite doc — no group read needed at this stage.
+  // The invite now contains the full metadata stored at group creation time.
+  const groupSummary = {
+    groupId: invite.groupId,
+    groupName: invite.groupName || 'Groupe privé Luciole',
+    creatorId: invite.creatorId || null,
+    productId: invite.productId || null,
+    productName: invite.productName || 'Greffe sélectionnée',
+    variant: invite.variant || 'Longueur à confirmer',
+    targetAmount: Number(invite.targetAmount) > 0 ? Number(invite.targetAmount) : 1,
+    beneficiary: invite.beneficiary || 'Bénéficiaire à confirmer',
+    privacy: invite.privacy || 'private',
+    memberCount: 1
+  };
+
+  const memberRef = doc(db, 'groups', invite.groupId, 'members', user.id);
+  const existingMember = await getDoc(memberRef);
+
+  if (existingMember.exists()) {
+    return { ...groupSummary, alreadyMember: true };
+  }
+
+  // STEP 1 — Write member doc FIRST so the user becomes an accepted member.
+  // All subsequent operations (group read, message write) depend on this status.
+  await setDoc(memberRef, {
+    userId: user.id,
+    name: user.name,
+    ...groupSummary,
+    role: 'member',
+    status: 'accepted',
+    joinedAt: serverTimestamp()
+  });
+
+  // STEP 2 — Now that the member doc exists, try to read the full group doc to
+  // get the latest targetAmount and memberCount. The security rule
+  // isAcceptedMember() will now pass because we just wrote status:'accepted'.
   try {
     const groupSnapshot = await getDoc(doc(db, 'groups', invite.groupId));
     if (groupSnapshot.exists()) {
       const data = groupSnapshot.data();
-      groupSummary = {
-        groupName: data.name || invite.groupName || 'Groupe privé Luciole',
-        creatorId: data.creatorId || invite.creatorId || null,
-        productId: data.productId || null,
-        productName: data.productName || 'Greffe sélectionnée',
-        variant: data.variant || 'Longueur à confirmer',
-        targetAmount: Number(data.targetAmount) > 0 ? Number(data.targetAmount) : 1,
-        beneficiary: data.beneficiary || 'Bénéficiaire à confirmer',
-        privacy: data.privacy || 'private',
-        memberCount: Number(data.memberCount) > 0 ? Number(data.memberCount) : 1
-      };
+      groupSummary.groupName = data.name || groupSummary.groupName;
+      groupSummary.productName = data.productName || groupSummary.productName;
+      groupSummary.variant = data.variant || groupSummary.variant;
+      groupSummary.targetAmount = Number(data.targetAmount) > 0 ? Number(data.targetAmount) : groupSummary.targetAmount;
+      groupSummary.beneficiary = data.beneficiary || groupSummary.beneficiary;
+      groupSummary.privacy = data.privacy || groupSummary.privacy;
+      groupSummary.memberCount = (Number(data.memberCount) || 1) + 1;
+      // Update member doc with accurate data from group (best-effort).
+      setDoc(memberRef, { groupName: groupSummary.groupName, productName: groupSummary.productName, variant: groupSummary.variant, targetAmount: groupSummary.targetAmount, memberCount: groupSummary.memberCount }, { merge: true }).catch(() => {});
     }
-  } catch (error) {
-    console.warn('Unable to read group summary while joining:', error);
+  } catch (groupReadError) {
+    console.warn('Could not refresh group data after join (will use invite data):', groupReadError);
   }
-  const memberRef = doc(db, 'groups', invite.groupId, 'members', user.id);
-  const existingMember = await getDoc(memberRef);
-  if (!existingMember.exists()) {
-    await setDoc(memberRef, {
-      userId: user.id,
-      name: user.name,
-      groupId: invite.groupId,
-      groupName: invite.groupName || groupSummary.groupName || 'Groupe privé Luciole',
-      ...groupSummary,
-      role: 'member',
-      status: 'accepted',
-      joinedAt: serverTimestamp()
-    });
-    await addDoc(collection(db, 'groups', invite.groupId, 'messages'), {
-      system: true,
-      content: `${user.name} a rejoint le groupe.`,
-      createdAt: serverTimestamp()
-    });
-  }
-  return { ...invite, ...groupSummary, alreadyMember: existingMember.exists() };
+
+  // STEP 3 — Write join message (user is now an accepted member so the rule passes).
+  addDoc(collection(db, 'groups', invite.groupId, 'messages'), {
+    system: true,
+    content: `${user.name} a rejoint le groupe.`,
+    createdAt: serverTimestamp()
+  }).catch((msgError) => console.warn('Could not write join message:', msgError));
+
+  return { ...groupSummary, alreadyMember: false };
 }
 
 async function declareContribution(groupId, contribution) {
