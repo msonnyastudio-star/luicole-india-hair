@@ -225,7 +225,7 @@ const GroupUI = (() => {
       render();
     } catch (error) {
       console.warn('Impossible de charger les groupes Firestore :', error);
-      // Ne pas afficher de toast — l'utilisateur verra juste "Aucun groupe pour le moment"
+      firestoreGroups = []; // stop spinner; show "Aucun groupe pour le moment"
       render();
     }
   }

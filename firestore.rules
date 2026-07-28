@@ -15,7 +15,12 @@ service cloud.firestore {
       allow update, delete: if isGeneralAdmin() || (isAcceptedMember(groupId) && resource.data.creatorId == request.auth.uid);
 
       match /members/{userId} {
-        allow read: if isAcceptedMember(groupId) || (signedIn() && userId == request.auth.uid);
+        // A member can read the member list of a group they belong to.  The
+        // second condition is deliberately based on document data: it lets
+        // Firestore safely run the collection-group query used to find *my*
+        // memberships, without exposing anybody else's memberships.
+        allow get: if isAcceptedMember(groupId) || (signedIn() && userId == request.auth.uid);
+        allow list: if isAcceptedMember(groupId) || (signedIn() && resource.data.userId == request.auth.uid);
         allow create: if signedIn() && userId == request.auth.uid;
         allow update, delete: if isGeneralAdmin() || (isAcceptedMember(groupId) && get(/databases/$(database)/documents/groups/$(groupId)).data.creatorId == request.auth.uid);
       }

@@ -200,22 +200,25 @@ async function createContributionGroup(group, user) {
 }
 
 async function getMemberGroups(userId) {
+  // Single where clause avoids composite index requirement; filter status client-side.
   const membershipSnapshot = await getDocs(query(
     collectionGroup(db, 'members'),
-    where('userId', '==', userId),
-    where('status', '==', 'accepted')
+    where('userId', '==', userId)
   ));
-  const groups = await Promise.all(membershipSnapshot.docs.map(async (membership) => {
+  const acceptedDocs = membershipSnapshot.docs.filter((d) => d.data().status === 'accepted');
+  const groups = await Promise.all(acceptedDocs.map(async (membership) => {
     const groupRef = membership.ref.parent.parent;
     const groupSnapshot = await getDoc(groupRef);
     if (!groupSnapshot.exists()) return null;
     const contributions = await getDocs(collection(groupRef, 'contributions'));
-    const members = await getDocs(collection(groupRef, 'members'));
     return {
       id: groupSnapshot.id,
       ...groupSnapshot.data(),
       contributions: contributions.docs.map((item) => ({ id: item.id, ...item.data() })),
-      memberCount: members.size,
+      // The group keeps this display value.  Do not load every member here:
+      // a member must never need access to the complete membership list just
+      // to open their own dashboard.
+      memberCount: Number(groupSnapshot.data().memberCount) || 1,
       messages: []
     };
   }));
