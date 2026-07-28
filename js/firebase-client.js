@@ -306,7 +306,7 @@ async function joinContributionGroup(inviteCode, user) {
       createdAt: serverTimestamp()
     });
   }
-  return { ...invite, alreadyMember: existingMember.exists() };
+  return { ...invite, ...groupSummary, alreadyMember: existingMember.exists() };
 }
 
 async function declareContribution(groupId, contribution) {

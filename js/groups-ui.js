@@ -42,10 +42,12 @@ const GroupUI = (() => {
     return true;
   }
 
-  function openModal(content) {
+  function openModal(content, { discussion = false } = {}) {
     const element = modal();
-    element.innerHTML = `<div class="group-modal-card" role="dialog" aria-modal="true" aria-label="${text('Espace groupes', 'Group space')}">
-      <button class="group-modal-close" type="button" data-group-close aria-label="${text('Fermer', 'Close')}"><i class="fas fa-times"></i></button>${content}</div>`;
+    const cardClass = discussion ? 'group-modal-card discussion-modal-card' : 'group-modal-card';
+    const closeBtn = discussion ? '' : `<button class="group-modal-close" type="button" data-group-close aria-label="${text('Fermer', 'Close')}"><i class="fas fa-times"></i></button>`;
+    element.innerHTML = `<div class="${cardClass}" role="dialog" aria-modal="true" aria-label="${text('Espace groupes', 'Group space')}">${closeBtn}${content}</div>`;
+    if (discussion) element.dataset.mode = 'discussion'; else delete element.dataset.mode;
     element.classList.add('active');
     element.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
@@ -57,7 +59,22 @@ const GroupUI = (() => {
     element.classList.remove('active');
     element.setAttribute('aria-hidden', 'true');
     element.innerHTML = '';
+    delete element.dataset.mode;
     document.body.style.overflow = '';
+  }
+
+  function formatMessageTime(createdAt) {
+    if (!createdAt) return '';
+    try {
+      const date = createdAt?.toDate ? createdAt.toDate() : new Date(createdAt);
+      if (isNaN(date.getTime())) return '';
+      const now = new Date();
+      const diffMin = Math.round((now - date) / 60000);
+      if (diffMin < 1) return text("À l'instant", 'Just now');
+      if (diffMin < 60) return `${diffMin} min`;
+      if (date.toDateString() === now.toDateString()) return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return date.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
+    } catch (_) { return ''; }
   }
 
   function showToast(message) {
@@ -346,9 +363,30 @@ const GroupUI = (() => {
     const user = getUser();
     if (user.source === 'firebase') {
       const invite = await window.FirebaseClient.joinContributionGroup(code, user);
-      await refreshFirestoreGroups();
       closeModal();
+      if (!invite.alreadyMember) {
+        // Optimistically show the group immediately so the joiner sees it right away.
+        const optimistic = {
+          id: invite.groupId,
+          name: invite.groupName || 'Groupe privé Luciole',
+          beneficiary: invite.beneficiary || 'Bénéficiaire à confirmer',
+          privacy: invite.privacy || 'private',
+          creatorId: invite.creatorId || null,
+          productId: invite.productId || null,
+          productName: invite.productName || 'Greffe sélectionnée',
+          variant: invite.variant || 'Longueur à confirmer',
+          targetAmount: Number(invite.targetAmount) > 0 ? Number(invite.targetAmount) : 1,
+          memberCount: Number(invite.memberCount) > 0 ? Number(invite.memberCount) : 1,
+          contributions: [],
+          messages: []
+        };
+        const existing = Array.isArray(firestoreGroups) ? firestoreGroups : [];
+        firestoreGroups = [optimistic, ...existing.filter((g) => g.id !== invite.groupId)];
+        render();
+      }
       showToast(invite.alreadyMember ? text('Vous faites déjà partie de ce groupe.', 'You are already a member of this group.') : text('Bienvenue dans le groupe ! Vous pouvez maintenant discuter et cotiser.', 'Welcome to the group! You can now chat and contribute.'));
+      // Refresh from Firestore in background (non-blocking).
+      refreshFirestoreGroups().catch(console.warn);
       return;
     }
     const groups = getGroups();
@@ -398,18 +436,51 @@ const GroupUI = (() => {
 
   async function showDiscussion(group) {
     if (getUser().source === 'firebase') group.messages = await window.FirebaseClient.getGroupMessages(group.id);
-    const messages = (group.messages || []).map((message) => message.system
-      ? `<div class="group-message group-system-message">${escapeHTML(message.content)}</div>`
-      : `<div class="group-message"><strong>${escapeHTML(message.author)}</strong>${escapeHTML(message.content)}</div>`).join('') || `<p>${text('Aucun message pour le moment.', 'No messages yet.')}</p>`;
-    openModal(`<h2>${text('Discussion privée', 'Private chat')}</h2><p>${text('Seuls les membres acceptés peuvent lire et envoyer des messages.', 'Only accepted members can read and send messages.')}</p>
-      <div class="group-message-list">${messages}</div>
-      <form class="group-form" id="messageForm" data-group-id="${group.id}" style="margin-top:14px;"><label>${text('Votre message', 'Your message')}<textarea name="content" maxlength="1000" required placeholder="${text('Écrire un message…', 'Write a message…')}"></textarea></label><p class="group-payment-warning">${text('Respectez les autres membres. Ne partagez jamais votre code secret Orange Money, votre mot de passe ou une information bancaire confidentielle.', 'Respect other members. Never share your Orange Money PIN, password or confidential banking information.')}</p><button class="btn btn-primary" type="submit"><i class="fas fa-paper-plane"></i> ${text('Envoyer', 'Send')}</button></form>`);
+    const currentUserId = getUser().id;
+    const msgs = group.messages || [];
+    const messagesHtml = msgs.length
+      ? msgs.map((msg) => {
+          if (msg.system) {
+            return `<div class="chat-message chat-system"><span>${escapeHTML(msg.content)}</span></div>`;
+          }
+          const isMine = msg.authorId === currentUserId;
+          const timeLabel = formatMessageTime(msg.createdAt);
+          return `<div class="chat-message ${isMine ? 'chat-mine' : 'chat-theirs'}">
+            ${!isMine ? `<div class="chat-author">${escapeHTML(msg.author || '')}</div>` : ''}
+            <div class="chat-bubble">${escapeHTML(msg.content)}</div>
+            ${timeLabel ? `<div class="chat-time">${timeLabel}</div>` : ''}
+          </div>`;
+        }).join('')
+      : `<div class="chat-empty"><i class="fas fa-comment-dots"></i><span>${text('Aucun message pour le moment. Soyez la première à écrire !', 'No messages yet. Be the first to write!')}</span></div>`;
+
+    openModal(`<div class="discussion-header">
+        <div class="discussion-title">
+          <span class="discussion-icon"><i class="fas fa-comments"></i></span>
+          <div>
+            <h2>${escapeHTML(group.name)}</h2>
+            <small>${text('Discussion privée · membres acceptés', 'Private chat · accepted members')}</small>
+          </div>
+        </div>
+        <button class="discussion-close-btn" type="button" data-group-close aria-label="${text('Fermer', 'Close')}"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="chat-messages" id="chatMessages">${messagesHtml}</div>
+      <form class="chat-input-area" id="messageForm" data-group-id="${group.id}" novalidate>
+        <textarea class="chat-textarea" name="content" maxlength="1000" required placeholder="${text('Écrire un message…', 'Write a message…')}" rows="1"></textarea>
+        <button class="chat-send-btn" type="submit" aria-label="${text('Envoyer', 'Send')}"><i class="fas fa-paper-plane"></i></button>
+      </form>`, { discussion: true });
+
+    window.setTimeout(() => {
+      const chatEl = document.getElementById('chatMessages');
+      if (chatEl) chatEl.scrollTop = chatEl.scrollHeight;
+      document.querySelector('.chat-textarea')?.focus();
+    }, 80);
   }
 
   async function sendMessage(form) {
     const group = findGroup(form.dataset.groupId);
     const content = new FormData(form).get('content').trim();
     if (!content) return;
+    form.reset();
     if (getUser().source === 'firebase') {
       await window.FirebaseClient.sendGroupMessage(group.id, { author: getUser().name, authorId: getUser().id, content });
     } else {
