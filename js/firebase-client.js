@@ -205,22 +205,30 @@ async function getMemberGroups(userId) {
     collectionGroup(db, 'members'),
     where('userId', '==', userId)
   ));
-  const acceptedDocs = membershipSnapshot.docs.filter((d) => d.data().status === 'accepted');
+  const acceptedDocs = membershipSnapshot.docs.filter((d) => {
+    const status = d.data().status;
+    return !status || status === 'accepted';
+  });
   const groups = await Promise.all(acceptedDocs.map(async (membership) => {
-    const groupRef = membership.ref.parent.parent;
-    const groupSnapshot = await getDoc(groupRef);
-    if (!groupSnapshot.exists()) return null;
-    const contributions = await getDocs(collection(groupRef, 'contributions'));
-    return {
-      id: groupSnapshot.id,
-      ...groupSnapshot.data(),
-      contributions: contributions.docs.map((item) => ({ id: item.id, ...item.data() })),
-      // The group keeps this display value.  Do not load every member here:
-      // a member must never need access to the complete membership list just
-      // to open their own dashboard.
-      memberCount: Number(groupSnapshot.data().memberCount) || 1,
-      messages: []
-    };
+    try {
+      const groupRef = membership.ref.parent.parent;
+      const groupSnapshot = await getDoc(groupRef);
+      if (!groupSnapshot.exists()) return null;
+      const contributions = await getDocs(collection(groupRef, 'contributions'));
+      return {
+        id: groupSnapshot.id,
+        ...groupSnapshot.data(),
+        contributions: contributions.docs.map((item) => ({ id: item.id, ...item.data() })),
+        // The group keeps this display value.  Do not load every member here:
+        // a member must never need access to the complete membership list just
+        // to open their own dashboard.
+        memberCount: Number(groupSnapshot.data().memberCount) || 1,
+        messages: []
+      };
+    } catch (error) {
+      console.warn('Skipping unreadable group membership:', error);
+      return null;
+    }
   }));
   return groups.filter(Boolean);
 }

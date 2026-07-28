@@ -300,6 +300,9 @@ const GroupUI = (() => {
     };
     if (user.source === 'firebase') {
       await window.FirebaseClient.createContributionGroup(group, user);
+      const current = Array.isArray(firestoreGroups) ? firestoreGroups : [];
+      firestoreGroups = [group, ...current.filter((item) => item.id !== group.id)];
+      render();
       await refreshFirestoreGroups();
     } else {
       const groups = getGroups();
