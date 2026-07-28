@@ -176,6 +176,16 @@ async function createContributionGroup(group, user) {
   batch.set(doc(groupRef, 'members', user.id), {
     userId: user.id,
     name: user.name,
+    groupId: group.id,
+    groupName: group.name,
+    creatorId: user.id,
+    productId: group.productId,
+    productName: group.productName,
+    variant: group.variant,
+    targetAmount: group.targetAmount,
+    beneficiary: group.beneficiary,
+    privacy: group.privacy,
+    memberCount: 1,
     role: 'group_admin',
     status: 'accepted',
     createdAt: serverTimestamp()
@@ -210,10 +220,25 @@ async function getMemberGroups(userId) {
     return !status || status === 'accepted';
   });
   const groups = await Promise.all(acceptedDocs.map(async (membership) => {
+    const membershipData = membership.data() || {};
+    const groupRef = membership.ref.parent.parent;
+    const fallbackGroup = {
+      id: groupRef.id,
+      name: membershipData.groupName || 'Groupe privé Luciole',
+      beneficiary: membershipData.beneficiary || 'Bénéficiaire à confirmer',
+      privacy: membershipData.privacy || 'private',
+      creatorId: membershipData.creatorId || membershipData.userId || userId,
+      productId: membershipData.productId || null,
+      productName: membershipData.productName || 'Greffe sélectionnée',
+      variant: membershipData.variant || 'Longueur à confirmer',
+      targetAmount: Number(membershipData.targetAmount) > 0 ? Number(membershipData.targetAmount) : 1,
+      memberCount: Number(membershipData.memberCount) > 0 ? Number(membershipData.memberCount) : 1,
+      contributions: [],
+      messages: []
+    };
     try {
-      const groupRef = membership.ref.parent.parent;
       const groupSnapshot = await getDoc(groupRef);
-      if (!groupSnapshot.exists()) return null;
+      if (!groupSnapshot.exists()) return fallbackGroup;
       const contributions = await getDocs(collection(groupRef, 'contributions'));
       return {
         id: groupSnapshot.id,
@@ -226,8 +251,8 @@ async function getMemberGroups(userId) {
         messages: []
       };
     } catch (error) {
-      console.warn('Skipping unreadable group membership:', error);
-      return null;
+      console.warn('Using membership fallback for unreadable group:', error);
+      return fallbackGroup;
     }
   }));
   return groups.filter(Boolean);
@@ -242,12 +267,35 @@ async function joinContributionGroup(inviteCode, user) {
     throw error;
   }
   const invite = inviteSnapshot.data();
+  let groupSummary = {};
+  try {
+    const groupSnapshot = await getDoc(doc(db, 'groups', invite.groupId));
+    if (groupSnapshot.exists()) {
+      const data = groupSnapshot.data();
+      groupSummary = {
+        groupName: data.name || invite.groupName || 'Groupe privé Luciole',
+        creatorId: data.creatorId || invite.creatorId || null,
+        productId: data.productId || null,
+        productName: data.productName || 'Greffe sélectionnée',
+        variant: data.variant || 'Longueur à confirmer',
+        targetAmount: Number(data.targetAmount) > 0 ? Number(data.targetAmount) : 1,
+        beneficiary: data.beneficiary || 'Bénéficiaire à confirmer',
+        privacy: data.privacy || 'private',
+        memberCount: Number(data.memberCount) > 0 ? Number(data.memberCount) : 1
+      };
+    }
+  } catch (error) {
+    console.warn('Unable to read group summary while joining:', error);
+  }
   const memberRef = doc(db, 'groups', invite.groupId, 'members', user.id);
   const existingMember = await getDoc(memberRef);
   if (!existingMember.exists()) {
     await setDoc(memberRef, {
       userId: user.id,
       name: user.name,
+      groupId: invite.groupId,
+      groupName: invite.groupName || groupSummary.groupName || 'Groupe privé Luciole',
+      ...groupSummary,
       role: 'member',
       status: 'accepted',
       joinedAt: serverTimestamp()

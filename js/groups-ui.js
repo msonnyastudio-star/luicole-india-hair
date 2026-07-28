@@ -220,12 +220,15 @@ const GroupUI = (() => {
   async function refreshFirestoreGroups() {
     const user = getUser();
     if (!user?.source || !window.FirebaseClient) return;
+    const previousGroups = Array.isArray(firestoreGroups) ? [...firestoreGroups] : [];
     try {
       firestoreGroups = await window.FirebaseClient.getMemberGroups(user.id);
       render();
     } catch (error) {
       console.warn('Impossible de charger les groupes Firestore :', error);
-      firestoreGroups = []; // stop spinner; show "Aucun groupe pour le moment"
+      // Keep the last known list (including optimistic groups) if available.
+      // Only fall back to [] when this is the very first load.
+      firestoreGroups = previousGroups.length ? previousGroups : [];
       render();
     }
   }
