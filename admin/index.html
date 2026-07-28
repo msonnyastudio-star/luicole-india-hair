@@ -517,8 +517,8 @@
       const idx = products.findIndex(p => p.id === productId);
       if (idx === -1) return;
       products[idx].referencePrice = price;
-      products[idx].lengths.forEach(variant => {
-        if (!variant.price || variant.price === 0) variant.price = price;
+      products[idx].lengths.forEach((variant) => {
+        variant.price = price;
       });
       saveProducts();
       patchFirestorePrice(productId, price).then(() => {
@@ -537,6 +537,9 @@
         const idx = products.findIndex(p => p.id === id);
         if (idx !== -1 && price > 0) {
           products[idx].referencePrice = price;
+          products[idx].lengths.forEach((variant) => {
+            variant.price = price;
+          });
         }
       }
       saveProducts();

@@ -127,8 +127,8 @@ async function applyFirestorePrices() {
       const price = overrides[String(product.id)];
       if (typeof price === 'number' && price > 0 && product.referencePrice !== price) {
         product.referencePrice = price;
-        product.lengths.forEach(variant => {
-          if (!variant.price || variant.price === 0) variant.price = price;
+        product.lengths.forEach((variant) => {
+          variant.price = price;
         });
         changed = true;
       }
@@ -884,8 +884,8 @@ const translations = {
     "nav-promo": "Promotions",
     "nav-delivery": "Livraison",
     "nav-about": "À propos",
-    "hero-title": "Des greffes, mèches et perruques premium pour un look naturel",
-    "hero-sub": "Découvrez nos greffes, mèches, closures, frontals et perruques premium. Livraison partout au Cameroun.",
+    "hero-title": "Vente de greffes premium au Cameroun",
+    "hero-sub": "Greffes lace et sans lace, closures, frontals et perruques prêtes à poser. Prix visibles, livraison nationale et commande rapide sur WhatsApp.",
     "btn-discover": "Découvrir nos collections",
     "btn-order-wa": "Commander sur WhatsApp",
     "adv1": "Cheveux de qualité premium",
@@ -924,19 +924,23 @@ const translations = {
     "cat-sub": "Explorez notre gamme complète de cheveux premium pour tous les styles et toutes les envies.",
     "catalog-title": "Notre catalogue de cheveux",
     "catalog-sub": "Greffes, mèches, closures, frontals et perruques premium à choisir selon votre style.",
-    "promo-title": "Promotions & Offres",
-    "promo-sub": "Profitez de nos offres exclusives et faites-vous livrer partout au Cameroun.",
-    "promo-1-title": "Pack 3 Greffes + Closure",
-    "promo-1-text": "Économisez sur l’achat groupé. 3 greffes indiennes lisses + 1 closure 4x4. Qualité premium garantie.",
-    "promo-1-action": "Voir l’offre",
-    "promo-2-title": "Perruques Lace Frontal",
-    "promo-2-text": "Découvrez notre nouvelle collection de perruques lace frontal ultra réalistes. Aspect naturel garanti.",
-    "promo-2-action": "Découvrir",
-    "promo-3-title": "Greffes Indiennes Lisses",
-    "promo-3-text": "Le best-seller de la boutique. Texture soyeuse, brillance exceptionnelle. Disponible de 12 à 24 pouces.",
-    "promo-4-title": "Mèches Colorées Ombré",
-    "promo-4-text": "Apportez de la lumière à votre coiffure avec nos mèches ombré blonde. Stock limité.",
-    "promo-4-action": "Profiter",
+    "hero-lace-title": "Greffes lace HD",
+    "hero-lace-sub": "Finition naturelle pour mariage, shooting, soirée.",
+    "hero-nolace-title": "Greffes sans lace",
+    "hero-nolace-sub": "Bob chic et volume quotidien, facile à entretenir.",
+    "promo-title": "Campagne Pose Professionnelle",
+    "promo-sub": "Nos professionnelles réalisent vos poses lace et greffes pour mariage, anniversaire, soirée, shooting et événements VIP.",
+    "promo-1-title": "Pose Lace Mariage",
+    "promo-1-text": "Finition HD, baby hair, ajustement de la ligne frontale et fixation longue tenue pour le jour J.",
+    "promo-1-action": "Réserver ma pose",
+    "promo-2-title": "Pose Anniversaire & Soirée",
+    "promo-2-text": "Coiffage glamour, boucles définies, volume maîtrisé et finition photo-ready pour vos événements.",
+    "promo-2-action": "Voir les styles",
+    "promo-3-title": "Pose VIP à domicile",
+    "promo-3-text": "Douala, Yaoundé et environs : nos professionnelles se déplacent selon planning pour votre pose complète.",
+    "promo-4-title": "Conseil Morphologie & Choix de lace",
+    "promo-4-text": "Nous vous aidons à choisir lace frontal, closure ou sans lace selon votre visage et votre budget.",
+    "promo-4-action": "Parler à une pro",
     "delivery-title": "Livraison partout au Cameroun",
     "delivery-sub": "Nous livrons vos commandes dans toutes les régions du pays.",
     "delivery-text1": `« ${SITE_NAME} livre vos commandes dans toutes les régions du Cameroun. Les délais et frais de livraison sont confirmés sur WhatsApp selon votre ville et votre quartier. »`,
@@ -1024,8 +1028,8 @@ const translations = {
     "nav-promo": "Promotions",
     "nav-delivery": "Delivery",
     "nav-about": "About",
-    "hero-title": "Premium hair bundles and wigs for a natural look",
-    "hero-sub": "Discover our premium hair bundles, weaves, closures, frontals and wigs. Delivery all over Cameroon.",
+    "hero-title": "Premium hair bundles for sale in Cameroon",
+    "hero-sub": "Lace and non-lace bundles, closures, frontals and ready-to-wear wigs. Visible prices, nationwide delivery and fast WhatsApp ordering.",
     "btn-discover": "Discover our collections",
     "btn-order-wa": "Order on WhatsApp",
     "adv1": "Premium quality hair",
@@ -1064,19 +1068,23 @@ const translations = {
     "cat-sub": "Explore our complete range of premium hair for every style and preference.",
     "catalog-title": "Our hair catalog",
     "catalog-sub": "Premium hair bundles, weaves, closures, frontals and wigs to match your style.",
-    "promo-title": "Promotions & Offers",
-    "promo-sub": "Enjoy our exclusive offers and get delivery anywhere in Cameroon.",
-    "promo-1-title": "3 Bundles + Closure Pack",
-    "promo-1-text": "Save on a bundle purchase: 3 straight Indian hair bundles + one 4x4 closure. Premium quality guaranteed.",
-    "promo-1-action": "View the offer",
-    "promo-2-title": "Lace Frontal Wigs",
-    "promo-2-text": "Discover our new collection of ultra-realistic lace frontal wigs. A natural look guaranteed.",
-    "promo-2-action": "Discover",
-    "promo-3-title": "Straight Indian Hair Bundles",
-    "promo-3-text": "The boutique’s best seller: silky texture and exceptional shine. Available from 12 to 24 inches.",
-    "promo-4-title": "Ombré Coloured Extensions",
-    "promo-4-text": "Bring light to your hairstyle with our blonde ombré extensions. Limited stock.",
-    "promo-4-action": "Shop now",
+    "hero-lace-title": "HD lace bundles",
+    "hero-lace-sub": "Natural finish for weddings, photoshoots and parties.",
+    "hero-nolace-title": "Non-lace bundles",
+    "hero-nolace-sub": "Chic bob and daily volume, easy to maintain.",
+    "promo-title": "Professional Installation Campaign",
+    "promo-sub": "Our professionals install lace and bundles for weddings, birthdays, parties, shoots and VIP events.",
+    "promo-1-title": "Wedding Lace Installation",
+    "promo-1-text": "HD finish, baby hair styling, frontal line adjustment and long-hold fixing for your big day.",
+    "promo-1-action": "Book my install",
+    "promo-2-title": "Birthday & Party Installation",
+    "promo-2-text": "Glam styling, defined curls, controlled volume and photo-ready finish for your events.",
+    "promo-2-action": "View styles",
+    "promo-3-title": "VIP Home Installation",
+    "promo-3-text": "Douala, Yaoundé and nearby areas: our professionals can come to you based on schedule.",
+    "promo-4-title": "Face Shape & Lace Guidance",
+    "promo-4-text": "We help you choose lace frontal, closure or non-lace based on your face shape and budget.",
+    "promo-4-action": "Talk to a pro",
     "delivery-title": "Delivery all over Cameroon",
     "delivery-sub": "We deliver your orders to every region of the country.",
     "delivery-text1": `« ${SITE_NAME} delivers your orders to every region of Cameroon. Delivery times and fees are confirmed on WhatsApp according to your city and neighborhood. »`,
@@ -1181,8 +1189,8 @@ function setLanguage(lang) {
   const heroH1 = document.querySelector('.hero-content h1');
   if (heroH1) {
     heroH1.innerHTML = lang === 'fr'
-      ? 'La beauté commence par des <span>cheveux d\'exception</span>'
-      : 'Beauty begins with <span>exceptional hair</span>';
+      ? 'Vente de <span>greffes premium</span> au Cameroun'
+      : 'Premium <span>hair bundles</span> for sale in Cameroon';
   }
 
   // About paragraphs

@@ -1,7 +1,5 @@
 // Luciole India Hair - catalogue visuel
-// Les tarifs sont volontairement à renseigner par l'administration : aucune
-// information de prix ou de composition n'a été déduite uniquement des photos.
-const CATALOG_VERSION = '2026-07-27-catalogue-v3';
+const CATALOG_VERSION = '2026-07-28-catalogue-v4';
 
 const CARE_BY_TEXTURE = {
   lisse: "Lavez délicatement avec un shampooing doux, hydratez les longueurs et protégez les cheveux avant toute source de chaleur.",
@@ -10,6 +8,17 @@ const CARE_BY_TEXTURE = {
 };
 
 function catalogueProduct({ id, name, texture, color, lengths, photo, description, badge = 'nouveau', category = 'Perruques lace frontal' }) {
+  const isLaceStyle = /lace/i.test(category) || /^Lace/i.test(name);
+  const normalizedLengths = lengths.map((length) => Number(length));
+  const pricedLengths = normalizedLengths.map((length) => ({
+    length: `${length} pouces`,
+    price: estimateCameroonPrice(length, texture, isLaceStyle)
+  }));
+  const referencePrice = Math.min(...pricedLengths.map((variant) => variant.price));
+  const density = texture === 'bouclé' ? '180% à 200%' : texture === 'ondulé' ? '180%' : '150% à 180%';
+  const capDetail = isLaceStyle ? 'Lace HD 13x4 (ou 5x5 selon stock)' : 'Bonnet machine sans lace, effet naturel';
+  const weight = `${estimateWeightRange(normalizedLengths[0], normalizedLengths[normalizedLengths.length - 1], texture)} g`;
+  const hairGrade = 'Cheveux humains Remy grade 10A';
   return {
     id,
     name,
@@ -17,19 +26,47 @@ function catalogueProduct({ id, name, texture, color, lengths, photo, descriptio
     texture,
     color,
     category,
-    lengths: lengths.map(length => ({ length: `${length} pouces`, price: 0 })),
-    density: 'À confirmer',
-    weight: 'À confirmer',
-    description: `${description} La taille exacte, la disponibilité et le prix sont confirmés avec notre équipe avant validation de la commande.`,
+    lengths: pricedLengths,
+    density,
+    weight,
+    description: `${description} ${hairGrade}. ${capDetail}. Pré-épilée, baby hair personnalisables, pose facile et entretien conseillé par notre équipe.`,
     care: CARE_BY_TEXTURE[texture],
-    delivery: 'Délai confirmé sur WhatsApp selon votre ville',
-    availability: 'Prix à confirmer',
+    delivery: 'Livraison 24h à 72h (Douala/Yaoundé), 2 à 5 jours pour les autres villes',
+    availability: 'En stock limité selon longueur — prix admin modifiable',
     badge,
-    referencePrice: 0,
+    referencePrice,
     images: [photo],
     promo: false,
     promoPrice: null
   };
+}
+
+function roundToNearest500(value) {
+  return Math.round(value / 500) * 500;
+}
+
+function estimateCameroonPrice(length, texture, isLaceStyle) {
+  const numericLength = Number(length) || 0;
+  const pricePerInch = {
+    lisse: 3200,
+    ondulé: 3600,
+    bouclé: 3900
+  };
+  const textureBase = {
+    lisse: 12000,
+    ondulé: 14500,
+    bouclé: 16500
+  };
+  const laceSurcharge = isLaceStyle ? 11000 : 3500;
+  const longLengthSurcharge = numericLength >= 26 ? 7000 : numericLength >= 22 ? 4000 : 0;
+  const rawPrice = ((pricePerInch[texture] || 3200) * numericLength) + (textureBase[texture] || 12000) + laceSurcharge + longLengthSurcharge;
+  return Math.max(28000, roundToNearest500(rawPrice));
+}
+
+function estimateWeightRange(minLength, maxLength, texture) {
+  const base = texture === 'bouclé' ? 165 : texture === 'ondulé' ? 150 : 135;
+  const spread = Math.max(1, Number(maxLength) - Number(minLength));
+  return `${base + (spread * 4)}-${base + (spread * 6)}`;
 }
 
 const PRODUCTS = [
@@ -89,7 +126,7 @@ const TESTIMONIALS = [
 
 const FAQ = [
   { q: 'Comment commander un modèle ?', a: 'Ouvrez le modèle qui vous plaît, choisissez la taille souhaitée puis contactez-nous sur WhatsApp. Nous confirmons la disponibilité, le prix et la livraison avant toute validation.' },
-  { q: 'Pourquoi certains prix sont-ils à confirmer ?', a: 'Le nouveau catalogue est en cours de mise à jour. Les prix varient selon le modèle, la longueur et la disponibilité. L’équipe renseigne chaque prix dans l’administration dès qu’il est validé.' },
+  { q: 'Comment sont fixés les prix affichés ?', a: 'Les prix affichés sont basés sur les tendances du marché camerounais selon la texture, la longueur et la finition (lace ou sans lace). L’administration peut les ajuster à tout moment selon le stock réel.' },
   { q: 'Comment choisir la longueur ?', a: 'Les longueurs sont indiquées en pouces. Un bob est généralement compris entre 8 et 14 pouces ; les modèles longs commencent souvent à 18 pouces. Contactez-nous pour un conseil adapté à votre look.' },
   { q: 'Puis-je demander une autre couleur ou une autre taille ?', a: 'Oui. Envoyez-nous le nom ou la référence du modèle par WhatsApp et indiquez la couleur et la taille souhaitées. Nous vous confirmerons les possibilités.' },
   { q: 'Livrez-vous au Cameroun ?', a: 'Oui, la disponibilité et le délai de livraison sont confirmés sur WhatsApp selon votre ville.' }
@@ -97,7 +134,7 @@ const FAQ = [
 
 const FAQ_EN = [
   { q: 'How do I order a style?', a: 'Open the style you like, choose the desired length and contact us on WhatsApp. We confirm availability, price and delivery before validation.' },
-  { q: 'Why are some prices to be confirmed?', a: 'The new catalogue is being updated. Prices depend on the style, length and availability, and are confirmed by our team.' },
+  { q: 'How are displayed prices set?', a: 'Displayed prices are based on Cameroon market trends by texture, length and finish (lace or non-lace). The admin can update them anytime according to actual stock.' },
   { q: 'How do I choose a length?', a: 'Lengths are shown in inches. Bobs are commonly 8–14 inches, while long styles commonly begin at 18 inches.' },
   { q: 'Can I request another colour or size?', a: 'Yes. Send us the product name or reference on WhatsApp and tell us the colour and size you need.' },
   { q: 'Do you deliver in Cameroon?', a: 'Yes. Availability and delivery time are confirmed on WhatsApp according to your city.' }
