@@ -156,6 +156,7 @@ getRedirectResult(auth).catch((error) => {
 
 async function createContributionGroup(group, user) {
   const groupRef = doc(db, 'groups', group.id);
+  const userMembershipRef = doc(db, 'users', user.id, 'groupMemberships', group.id);
   const batch = writeBatch(db);
   batch.set(groupRef, {
     name: group.name,
@@ -176,6 +177,22 @@ async function createContributionGroup(group, user) {
   batch.set(doc(groupRef, 'members', user.id), {
     userId: user.id,
     name: user.name,
+    groupId: group.id,
+    groupName: group.name,
+    creatorId: user.id,
+    productId: group.productId,
+    productName: group.productName,
+    variant: group.variant,
+    targetAmount: group.targetAmount,
+    beneficiary: group.beneficiary,
+    privacy: group.privacy,
+    memberCount: 1,
+    role: 'group_admin',
+    status: 'accepted',
+    createdAt: serverTimestamp()
+  });
+  batch.set(userMembershipRef, {
+    userId: user.id,
     groupId: group.id,
     groupName: group.name,
     creatorId: user.id,
@@ -216,20 +233,62 @@ async function createContributionGroup(group, user) {
 }
 
 async function getMemberGroups(userId) {
-  // Single where clause avoids composite index requirement; filter status client-side.
-  const membershipSnapshot = await getDocs(query(
-    collectionGroup(db, 'members'),
-    where('userId', '==', userId)
-  ));
-  const acceptedDocs = membershipSnapshot.docs.filter((d) => {
-    const status = d.data().status;
-    return !status || status === 'accepted';
-  });
-  const groups = await Promise.all(acceptedDocs.map(async (membership) => {
-    const membershipData = membership.data() || {};
-    const groupRef = membership.ref.parent.parent;
+  const memberships = new Map();
+  const remember = (groupId, data = {}) => {
+    if (!groupId || (data.status && data.status !== 'accepted')) return;
+    memberships.set(groupId, { ...(memberships.get(groupId) || {}), ...data, groupId });
+  };
+
+  // Primary path: each account owns a tiny private registry of its groups.
+  // This avoids collection-group indexes and survives login/reload reliably.
+  const directSnapshot = await getDocs(collection(db, 'users', userId, 'groupMemberships'));
+  directSnapshot.docs.forEach((item) => remember(item.id, item.data()));
+
+  // Recovery path for groups created before the private registry existed.
+  // The security rules only permit this query for the authenticated creator.
+  try {
+    const ownedSnapshot = await getDocs(query(collection(db, 'groups'), where('creatorId', '==', userId)));
+    await Promise.all(ownedSnapshot.docs.map(async (item) => {
+      const data = item.data() || {};
+      const summary = {
+        userId,
+        groupId: item.id,
+        groupName: data.name || 'Groupe privé Luciole',
+        creatorId: userId,
+        productId: data.productId || null,
+        productName: data.productName || 'Greffe sélectionnée',
+        variant: data.variant || 'Longueur à confirmer',
+        targetAmount: Number(data.targetAmount) || 1,
+        beneficiary: data.beneficiary || 'Bénéficiaire à confirmer',
+        privacy: data.privacy || 'private',
+        memberCount: Number(data.memberCount) || 1,
+        role: 'group_admin',
+        status: 'accepted'
+      };
+      remember(item.id, summary);
+      // Repair both membership locations for an older creator account.
+      await Promise.all([
+        setDoc(doc(db, 'groups', item.id, 'members', userId), { ...summary, name: auth.currentUser?.displayName || auth.currentUser?.email || 'Membre Luciole', updatedAt: serverTimestamp() }, { merge: true }),
+        setDoc(doc(db, 'users', userId, 'groupMemberships', item.id), { ...summary, updatedAt: serverTimestamp() }, { merge: true })
+      ]).catch((error) => console.warn('Could not repair an owner membership:', error));
+    }));
+  } catch (error) {
+    console.warn('Could not recover groups owned by this account:', error);
+  }
+
+  // Legacy recovery for members who joined before the private registry was
+  // added. Failure here no longer prevents the primary list from loading.
+  try {
+    const legacySnapshot = await getDocs(query(collectionGroup(db, 'members'), where('userId', '==', userId)));
+    legacySnapshot.docs.forEach((item) => remember(item.ref.parent.parent.id, item.data()));
+  } catch (error) {
+    console.warn('Legacy membership lookup unavailable:', error);
+  }
+
+  const groups = await Promise.all(Array.from(memberships.entries()).map(async ([groupId, membershipData]) => {
+    const groupRef = doc(db, 'groups', groupId);
     const fallbackGroup = {
-      id: groupRef.id,
+      id: groupId,
       name: membershipData.groupName || 'Groupe privé Luciole',
       beneficiary: membershipData.beneficiary || 'Bénéficiaire à confirmer',
       privacy: membershipData.privacy || 'private',
@@ -246,7 +305,7 @@ async function getMemberGroups(userId) {
       const groupSnapshot = await getDoc(groupRef);
       if (!groupSnapshot.exists()) return fallbackGroup;
       const contributions = await getDocs(collection(groupRef, 'contributions'));
-      return {
+      const loadedGroup = {
         id: groupSnapshot.id,
         ...groupSnapshot.data(),
         contributions: contributions.docs.map((item) => ({ id: item.id, ...item.data() })),
@@ -256,6 +315,24 @@ async function getMemberGroups(userId) {
         memberCount: Number(groupSnapshot.data().memberCount) || 1,
         messages: []
       };
+      // Backfill the reliable private registry for legacy memberships.
+      setDoc(doc(db, 'users', userId, 'groupMemberships', groupId), {
+        userId,
+        groupId,
+        groupName: loadedGroup.name || fallbackGroup.name,
+        creatorId: loadedGroup.creatorId || fallbackGroup.creatorId,
+        productId: loadedGroup.productId || null,
+        productName: loadedGroup.productName || fallbackGroup.productName,
+        variant: loadedGroup.variant || fallbackGroup.variant,
+        targetAmount: Number(loadedGroup.targetAmount) || fallbackGroup.targetAmount,
+        beneficiary: loadedGroup.beneficiary || fallbackGroup.beneficiary,
+        privacy: loadedGroup.privacy || fallbackGroup.privacy,
+        memberCount: Number(loadedGroup.memberCount) || fallbackGroup.memberCount,
+        role: membershipData.role || 'member',
+        status: 'accepted',
+        updatedAt: serverTimestamp()
+      }, { merge: true }).catch((error) => console.warn('Could not backfill membership registry:', error));
+      return loadedGroup;
     } catch (error) {
       console.warn('Using membership fallback for unreadable group:', error);
       return fallbackGroup;
@@ -290,15 +367,26 @@ async function joinContributionGroup(inviteCode, user) {
   };
 
   const memberRef = doc(db, 'groups', invite.groupId, 'members', user.id);
+  const userMembershipRef = doc(db, 'users', user.id, 'groupMemberships', invite.groupId);
   const existingMember = await getDoc(memberRef);
 
   if (existingMember.exists()) {
+    // Older joins may have the group member document but not the private
+    // account registry. Repair it even when the code was already accepted.
+    await setDoc(userMembershipRef, {
+      userId: user.id,
+      ...groupSummary,
+      role: existingMember.data().role || 'member',
+      status: 'accepted',
+      updatedAt: serverTimestamp()
+    }, { merge: true });
     return { ...groupSummary, alreadyMember: true };
   }
 
   // STEP 1 — Write member doc FIRST so the user becomes an accepted member.
   // All subsequent operations (group read, message write) depend on this status.
-  await setDoc(memberRef, {
+  const joinBatch = writeBatch(db);
+  joinBatch.set(memberRef, {
     userId: user.id,
     name: user.name,
     ...groupSummary,
@@ -306,6 +394,14 @@ async function joinContributionGroup(inviteCode, user) {
     status: 'accepted',
     joinedAt: serverTimestamp()
   });
+  joinBatch.set(userMembershipRef, {
+    userId: user.id,
+    ...groupSummary,
+    role: 'member',
+    status: 'accepted',
+    joinedAt: serverTimestamp()
+  });
+  await joinBatch.commit();
 
   // STEP 2 — Now that the member doc exists, try to read the full group doc to
   // get the latest targetAmount and memberCount. The security rule
@@ -321,8 +417,8 @@ async function joinContributionGroup(inviteCode, user) {
       groupSummary.beneficiary = data.beneficiary || groupSummary.beneficiary;
       groupSummary.privacy = data.privacy || groupSummary.privacy;
       groupSummary.memberCount = (Number(data.memberCount) || 1) + 1;
-      // Update member doc with accurate data from group (best-effort).
-      setDoc(memberRef, { groupName: groupSummary.groupName, productName: groupSummary.productName, variant: groupSummary.variant, targetAmount: groupSummary.targetAmount, memberCount: groupSummary.memberCount }, { merge: true }).catch(() => {});
+      // Update the account registry with accurate data from the group.
+      setDoc(userMembershipRef, { userId: user.id, ...groupSummary, updatedAt: serverTimestamp() }, { merge: true }).catch(() => {});
     }
   } catch (groupReadError) {
     console.warn('Could not refresh group data after join (will use invite data):', groupReadError);

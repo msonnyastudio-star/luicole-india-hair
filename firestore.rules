@@ -11,6 +11,9 @@ service cloud.firestore {
 
     match /groups/{groupId} {
       allow get: if isAcceptedMember(groupId) || (signedIn() && resource.data.privacy == 'discoverable');
+      // A creator can recover their own groups after reconnecting. The client
+      // query is constrained with where('creatorId', '==', request.auth.uid).
+      allow list: if signedIn() && resource.data.creatorId == request.auth.uid;
       allow create: if signedIn() && request.resource.data.creatorId == request.auth.uid;
       allow update, delete: if isGeneralAdmin() || (isAcceptedMember(groupId) && resource.data.creatorId == request.auth.uid);
 
@@ -44,6 +47,16 @@ service cloud.firestore {
       allow read: if signedIn() && userId == request.auth.uid;
       allow create: if signedIn() && userId == request.auth.uid && request.resource.data.role == 'customer';
       allow update: if signedIn() && userId == request.auth.uid && request.resource.data.role == resource.data.role;
+
+      // Private per-user registry used to load "Mes groupes" reliably. The
+      // group member document remains the authority for all private content.
+      match /groupMemberships/{groupId} {
+        allow read, delete: if signedIn() && userId == request.auth.uid;
+        allow create, update: if signedIn()
+          && userId == request.auth.uid
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.groupId == groupId;
+      }
     }
     match /groupInvites/{inviteCode} {
       // An invitation code is only useful when it has been explicitly shared.
