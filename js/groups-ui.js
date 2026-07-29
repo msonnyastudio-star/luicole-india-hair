@@ -6,6 +6,11 @@ const GroupUI = (() => {
   const GROUPS_KEY = 'luciole_contribution_groups';
   let pendingProduct = null;
   let firestoreGroups = null;
+  let publicGroups = null;
+  let activeGroupTab = 'public';
+  let stopMemberGroups = null;
+  let stopPublicGroups = null;
+  let stopMessages = null;
 
   const isEnglish = () => document.documentElement.lang === 'en';
   const text = (fr, en) => isEnglish() ? en : fr;
@@ -56,6 +61,8 @@ const GroupUI = (() => {
 
   function closeModal() {
     const element = modal();
+    stopMessages?.();
+    stopMessages = null;
     element.classList.remove('active');
     element.setAttribute('aria-hidden', 'true');
     element.innerHTML = '';
@@ -87,51 +94,65 @@ const GroupUI = (() => {
     const prompt = document.getElementById('groupsAuthPrompt');
     const dashboard = document.getElementById('groupsDashboard');
     const account = document.getElementById('accountBtn');
-    if (!prompt || !dashboard) return;
-    // Use both the semantic `hidden` attribute and an explicit display value.
-    // Some mobile browser styles can otherwise override the browser's default
-    // `[hidden]` rule on a flex element.
-    if (user) {
-      prompt.hidden = true;
-      prompt.style.display = 'none';
-      dashboard.hidden = false;
-      dashboard.style.display = '';
-    } else {
-      prompt.hidden = false;
-      prompt.style.display = 'flex';
-      dashboard.hidden = true;
-      dashboard.style.display = 'none';
-    }
     if (account) account.innerHTML = user ? `<i class="fas fa-user-check"></i><span class="account-label">${escapeHTML(user.name)}</span>` : `<i class="fas fa-user"></i><span class="account-label">${text('Mon espace', 'My account')}</span>`;
-    if (!user) return;
+    // Authentication is shared with the main site, but group data is rendered
+    // only on the dedicated Groupes page.
+    if (!prompt || !dashboard || !document.querySelector('[data-groups-page]')) return;
+
+    document.querySelectorAll('[data-group-tab]').forEach((button) => {
+      const selected = button.dataset.groupTab === activeGroupTab;
+      button.classList.toggle('active', selected);
+      button.setAttribute('aria-selected', String(selected));
+    });
+
+    const needsPrivateLogin = activeGroupTab === 'private' && !user;
+    prompt.hidden = !needsPrivateLogin;
+    prompt.style.display = needsPrivateLogin ? 'flex' : 'none';
+    dashboard.hidden = needsPrivateLogin;
+    dashboard.style.display = needsPrivateLogin ? 'none' : '';
+    if (needsPrivateLogin) return;
 
     const grid = document.getElementById('groupsGrid');
-    const groups = getGroups();
-    // Show loading spinner if firestoreGroups is null (not yet loaded)
-    if (firestoreGroups === null) {
-      grid.innerHTML = `<div style="text-align:center;padding:30px;color:var(--gray);"><i class="fas fa-spinner fa-spin" style="font-size:1.5rem;margin-bottom:10px;display:block;"></i>${text('Chargement de vos groupes…', 'Loading your groups…')}</div>`;
+    const isPublicTab = activeGroupTab === 'public';
+    const groups = isPublicTab ? (publicGroups || []) : getGroups().filter((group) => group.privacy === 'private');
+    if ((isPublicTab && publicGroups === null) || (!isPublicTab && firestoreGroups === null)) {
+      grid.innerHTML = `<div class="groups-state"><i class="fas fa-spinner fa-spin"></i><p>${text('Synchronisation des groupes…', 'Syncing groups…')}</p></div>`;
       return;
     }
     if (!groups.length) {
-      grid.innerHTML = `<div class="groups-auth-prompt"><div><h3>${text('Aucun groupe pour le moment', 'No groups yet')}</h3><p>${text('Choisissez un produit puis créez un groupe privé pour commencer un achat collectif.', 'Choose a product, then create a private group to start a group purchase.')}</p></div><button class="btn btn-primary" data-create-group><i class="fas fa-users"></i> ${text('Créer mon premier groupe', 'Create my first group')}</button></div>`;
+      grid.innerHTML = `<div class="groups-state"><i class="fas fa-people-group"></i><h3>${isPublicTab ? text('Aucun groupe public pour le moment', 'No public groups yet') : text('Aucun groupe privé pour le moment', 'No private groups yet')}</h3><p>${text('Créez le premier cercle et avancez doucement vers votre prochaine couronne.', 'Create the first circle and move gently toward your next crown.')}</p><button class="btn btn-primary" data-create-group><i class="fas fa-plus"></i> ${text('Créer un groupe', 'Create a group')}</button></div>`;
       return;
     }
-    grid.innerHTML = groups.map((group) => {
-      const confirmed = GroupDomain.sumConfirmed(group.contributions || []);
-      const remaining = GroupDomain.getRemaining(group.targetAmount, group.contributions || []);
+    grid.innerHTML = groups.map((group) => renderGroupCard(group, isPublicTab)).join('');
+  }
+
+  function renderGroupCard(group, publicCard = false) {
+      const confirmed = Number(group.confirmedTotal) || GroupDomain.sumConfirmed(group.contributions || []);
+      const remaining = Math.max(0, Number(group.targetAmount) - confirmed);
       const percentage = Math.min(100, Math.round((confirmed / group.targetAmount) * 100));
       const declaredCount = (group.contributions || []).filter((item) => item.status === 'declared').length;
-      return `<article class="group-card">
+      const alreadyMember = Boolean(getUser() && getGroups().some((item) => item.id === group.id));
+      const publicActions = `<button type="button" class="btn btn-outline" data-details="${group.id}"><i class="fas fa-eye"></i> ${text('Voir le détail', 'View details')}</button><button type="button" class="btn btn-primary" data-join-public="${group.id}"><i class="fas ${alreadyMember ? 'fa-arrow-right' : 'fa-hand-sparkles'}"></i> ${alreadyMember ? text('Ouvrir', 'Open') : text('Rejoindre', 'Join')}</button>`;
+      const privateActions = `<button type="button" class="btn btn-outline" data-details="${group.id}"><i class="fas fa-eye"></i> ${text('Détails', 'Details')}</button>${group.privacy === 'private' ? `<button type="button" class="btn btn-outline" data-invite="${group.id}"><i class="fas fa-user-plus"></i> ${text('Inviter', 'Invite')}</button>` : ''}<button type="button" class="btn btn-outline" data-contribute="${group.id}">${text('Cotiser', 'Contribute')}</button><button type="button" class="btn btn-primary" data-discussion="${group.id}">${text('Discussion', 'Chat')}</button>`;
+      return `<article class="group-card ${publicCard ? 'group-card-public' : 'group-card-private'}">
         <div class="group-card-content">
-          <div class="group-card-top"><div class="group-title-wrap"><span class="group-community-icon"><i class="fas fa-users"></i></span><div><h3>${escapeHTML(group.name)}</h3><p class="group-card-product">${escapeHTML(group.productName)} · ${escapeHTML(group.variant)}</p></div></div><span class="group-status"><i class="fas ${group.privacy === 'private' ? 'fa-lock' : 'fa-compass'}"></i> ${group.privacy === 'private' ? text('Privé', 'Private') : text('Découvrable', 'Discoverable')}</span></div>
+          <div class="group-card-top"><div class="group-title-wrap"><span class="group-community-icon"><i class="fas fa-users"></i></span><div><h3>${escapeHTML(group.name)}</h3><p class="group-card-product">${escapeHTML(group.productName)} · ${escapeHTML(group.variant)}</p></div></div><span class="group-status"><i class="fas ${group.privacy === 'private' ? 'fa-lock' : 'fa-globe-africa'}"></i> ${group.privacy === 'private' ? text('Privé', 'Private') : text('Public', 'Public')}</span></div>
           <p class="group-beneficiary"><i class="fas fa-gift"></i> ${text('Bénéficiaire', 'Beneficiary')}: ${escapeHTML(group.beneficiary)}</p>
           <div class="group-amounts"><span>${text('Confirmé', 'Confirmed')} <strong>${money(confirmed)}</strong></span><span>${text('Reste', 'Remaining')} ${money(remaining)}</span></div>
           <div class="group-progress" aria-label="${text('Progression', 'Progress')} ${percentage}%"><span style="width:${percentage}%"></span></div>
-          <div class="group-card-meta"><span><i class="fas fa-users"></i> ${group.memberCount || 1} ${text((group.memberCount || 1) > 1 ? 'membres' : 'membre', (group.memberCount || 1) > 1 ? 'members' : 'member')}</span><span><i class="fas fa-file-invoice"></i> ${declaredCount} ${text('à vérifier', 'to review')}</span></div>
-          <div class="group-card-actions"><button type="button" class="btn btn-outline" data-invite="${group.id}"><i class="fas fa-user-plus"></i> ${text('Inviter', 'Invite')}</button><button type="button" class="btn btn-outline" data-contribute="${group.id}">${text('Cotiser', 'Contribute')}</button><button type="button" class="btn btn-primary" data-discussion="${group.id}">${text('Discussion', 'Chat')}</button></div>
+          <div class="group-card-meta"><span><i class="fas fa-users"></i> ${group.memberCount || 1}/${group.maxMembers || 10}</span><span><i class="fas fa-calendar-check"></i> ${escapeHTML(frequencyLabel(group.frequency))}</span>${publicCard ? '' : `<span><i class="fas fa-file-invoice"></i> ${declaredCount} ${text('à vérifier', 'to review')}</span>`}</div>
+          <div class="group-card-actions">${publicCard ? publicActions : privateActions}</div>
         </div>
       </article>`;
-    }).join('');
+  }
+
+  function frequencyLabel(value) {
+    const labels = {
+      weekly: text('Chaque semaine', 'Weekly'),
+      biweekly: text('Toutes les 2 semaines', 'Every 2 weeks'),
+      monthly: text('Chaque mois', 'Monthly')
+    };
+    return labels[value] || labels.monthly;
   }
 
   function showWelcome(name) {
@@ -219,12 +240,14 @@ const GroupUI = (() => {
   }
 
   function applyFirebaseUser(user) {
+    stopMemberGroups?.();
+    stopMemberGroups = null;
     if (user) {
       localStorage.setItem(USER_KEY, JSON.stringify(user));
       firestoreGroups = null; // reset pour déclencher le spinner au rechargement
       closeModal();
       render();
-      refreshFirestoreGroups();
+      if (document.querySelector('[data-groups-page]')) startMemberGroupsSubscription(user.id);
       if (pendingProduct) showCreateGroup(pendingProduct);
       return;
     }
@@ -232,6 +255,33 @@ const GroupUI = (() => {
     if (storedUser?.source === 'firebase') localStorage.removeItem(USER_KEY);
     firestoreGroups = null;
     render();
+  }
+
+  function startMemberGroupsSubscription(userId) {
+    if (!window.FirebaseClient?.subscribeMemberGroups) {
+      refreshFirestoreGroups();
+      return;
+    }
+    stopMemberGroups = window.FirebaseClient.subscribeMemberGroups(userId, (groups) => {
+      firestoreGroups = groups;
+      render();
+    }, (error) => {
+      console.warn('Synchronisation des groupes privés impossible :', error);
+      firestoreGroups = Array.isArray(firestoreGroups) ? firestoreGroups : [];
+      render();
+    });
+  }
+
+  function startPublicGroupsSubscription() {
+    if (!document.querySelector('[data-groups-page]') || stopPublicGroups || !window.FirebaseClient?.subscribePublicGroups) return;
+    stopPublicGroups = window.FirebaseClient.subscribePublicGroups((groups) => {
+      publicGroups = groups;
+      render();
+    }, (error) => {
+      console.warn('Synchronisation des groupes publics impossible :', error);
+      publicGroups = [];
+      render();
+    });
   }
 
   async function refreshFirestoreGroups() {
@@ -285,7 +335,10 @@ const GroupUI = (() => {
         ${fixedProduct}
         <label>${text('Montant objectif (FCFA)', 'Target amount (FCFA)')}<input name="targetAmount" type="number" min="1" ${targetValue} required><small>${text('À renseigner si le prix du catalogue n’est pas encore défini.', 'Fill this in if the catalogue price has not yet been set.')}</small></label>
         <label>${text('Bénéficiaire', 'Beneficiary')}<input name="beneficiary" required maxlength="80" placeholder="${text('Nom de la personne qui recevra le produit', 'Name of the person receiving the product')}"></label>
-        <label>${text('Confidentialité', 'Privacy')}<select name="privacy"><option value="private">${text('Privé — recommandé', 'Private — recommended')}</option><option value="discoverable">${text('Découvrable — sur demande d’adhésion', 'Discoverable — membership request required')}</option></select></label>
+        <label>${text('Fréquence de cotisation', 'Contribution frequency')}<select name="frequency"><option value="weekly">${text('Chaque semaine', 'Weekly')}</option><option value="biweekly">${text('Toutes les 2 semaines', 'Every 2 weeks')}</option><option value="monthly" selected>${text('Chaque mois', 'Monthly')}</option></select></label>
+        <label>${text('Date de début', 'Start date')}<input name="startDate" type="date" required></label>
+        <label>${text('Nombre maximum de membres', 'Maximum members')}<input name="maxMembers" type="number" min="2" max="100" value="10" required></label>
+        <label>${text('Visibilité', 'Visibility')}<select name="privacy"><option value="public">${text('Public — visible et ouvert', 'Public — visible and open')}</option><option value="private">${text('Privé — accessible par code', 'Private — invitation code only')}</option></select></label>
         <label>${text('Message de présentation', 'Introduction message')} <textarea name="message" maxlength="500" placeholder="${text('Facultatif', 'Optional')}"></textarea></label>
         <button class="btn btn-primary" type="submit"><i class="fas fa-users"></i> ${text('Créer le groupe', 'Create group')}</button>
       </form>`);
@@ -305,6 +358,9 @@ const GroupUI = (() => {
       name,
       beneficiary,
       privacy: data.get('privacy'),
+      frequency: data.get('frequency'),
+      startDate: data.get('startDate'),
+      maxMembers: Math.max(2, Math.min(100, Number(data.get('maxMembers')) || 10)),
       message: data.get('message').trim(),
       creatorId: user.id,
       productId: product.productId,
@@ -396,7 +452,52 @@ const GroupUI = (() => {
     showToast(text('Vous faites déjà partie de ce groupe sur cet appareil.', 'You are already a member of this group on this device.'));
   }
 
-  function findGroup(id) { return getGroups().find((group) => group.id === id); }
+  async function joinPublic(group) {
+    const user = getUser();
+    if (!user) {
+      pendingProduct = null;
+      showAuth();
+      return;
+    }
+    if (getGroups().some((item) => item.id === group.id)) {
+      render();
+      showDetails(findGroup(group.id));
+      return;
+    }
+    if (user.source !== 'firebase' || !window.FirebaseClient?.joinPublicGroup) {
+      throw new Error(text('Connectez-vous avec Firebase pour rejoindre ce groupe.', 'Sign in with Firebase to join this group.'));
+    }
+    const result = await window.FirebaseClient.joinPublicGroup(group.id, user);
+    showToast(result.alreadyMember ? text('Vous faites déjà partie de ce groupe.', 'You already belong to this group.') : text('Bienvenue ! Vous pouvez maintenant ouvrir les détails, cotiser et discuter.', 'Welcome! You can now open details, contribute and chat.'));
+    render();
+  }
+
+  async function showDetails(group) {
+    if (!group) return;
+    const isMember = Boolean(getUser() && getGroups().some((item) => item.id === group.id));
+    let details = group;
+    if (isMember && getUser()?.source === 'firebase' && window.FirebaseClient?.getGroupDetails) {
+      details = await window.FirebaseClient.getGroupDetails(group.id);
+    }
+    const contributions = details.contributions || [];
+    const confirmed = Number(details.confirmedTotal) || GroupDomain.sumConfirmed(contributions);
+    const remaining = Math.max(0, Number(details.targetAmount) - confirmed);
+    const percentage = Math.min(100, Math.round((confirmed / Math.max(1, Number(details.targetAmount))) * 100));
+    const members = details.members || [];
+    const confirmedHistory = contributions.filter((item) => item.status === 'confirmed');
+    openModal(`<div class="group-detail-head"><span class="group-community-icon"><i class="fas fa-people-group"></i></span><div><p class="eyebrow">${details.privacy === 'private' ? text('Cercle privé', 'Private circle') : text('Cercle public', 'Public circle')}</p><h2>${escapeHTML(details.name)}</h2><p>${escapeHTML(details.productName)} · ${escapeHTML(details.variant)}</p></div></div>
+      <div class="group-detail-stats"><div><strong>${money(details.targetAmount)}</strong><span>${text('Objectif', 'Target')}</span></div><div><strong>${money(confirmed)}</strong><span>${text('Collecté', 'Collected')}</span></div><div><strong>${members.length || details.memberCount || 1}/${details.maxMembers || 10}</strong><span>${text('Membres', 'Members')}</span></div></div>
+      <div class="group-progress group-detail-progress"><span style="width:${percentage}%"></span></div>
+      <p class="group-detail-message">${escapeHTML(details.presentationMessage || details.message || text('Ensemble, chaque petite cotisation rapproche la bénéficiaire de sa couronne.', 'Together, every contribution brings the beneficiary closer to her crown.'))}</p>
+      <div class="group-detail-grid">
+        <section><h3><i class="fas fa-calendar-days"></i> ${text('Organisation', 'Schedule')}</h3><p>${frequencyLabel(details.frequency)} · ${text('Début', 'Starts')} ${escapeHTML(details.startDate || text('à confirmer', 'to be confirmed'))}</p><p>${text('Bénéficiaire', 'Beneficiary')} : <strong>${escapeHTML(details.beneficiary)}</strong></p></section>
+        <section><h3><i class="fas fa-users"></i> ${text('Membres', 'Members')}</h3>${isMember ? (members.length ? `<ul>${members.map((member) => `<li>${escapeHTML(member.name || text('Membre Luciole', 'Luciole member'))}${member.role === 'group_admin' ? ` <small>· Admin</small>` : ''}</li>`).join('')}</ul>` : `<p>${text('La liste se synchronise…', 'The list is syncing…')}</p>`) : `<p>${text('La liste des membres est réservée au groupe.', 'The member list is reserved for the group.')}</p>`}</section>
+        <section><h3><i class="fas fa-clock-rotate-left"></i> ${text('Historique', 'History')}</h3>${isMember ? (confirmedHistory.length ? `<ul>${confirmedHistory.map((item) => `<li>${money(item.amount)} · ${escapeHTML(item.senderName || text('Membre', 'Member'))}</li>`).join('')}</ul>` : `<p>${text('Aucune cotisation confirmée pour le moment.', 'No confirmed contribution yet.')}</p>`) : `<p>${money(remaining)} ${text('restent à collecter.', 'remain to be collected.')}</p>`}</section>
+      </div>
+      <div class="group-detail-actions">${isMember ? `<button class="btn btn-outline" data-contribute="${details.id}">${text('Cotiser', 'Contribute')}</button><button class="btn btn-primary" data-discussion="${details.id}"><i class="fas fa-comments"></i> ${text('Ouvrir la discussion', 'Open chat')}</button>` : `<button class="btn btn-primary" data-join-public="${details.id}"><i class="fas fa-hand-sparkles"></i> ${text('Rejoindre ce groupe', 'Join this group')}</button>`}</div>`);
+  }
+
+  function findGroup(id) { return getGroups().find((group) => group.id === id) || (publicGroups || []).find((group) => group.id === id); }
   function updateGroup(updated) { saveGroups(getGroups().map((group) => group.id === updated.id ? updated : group)); }
 
   function showContribution(group) {
@@ -434,24 +535,22 @@ const GroupUI = (() => {
     showToast(text('Paiement déclaré. Le total confirmé reste inchangé jusqu’à vérification.', 'Payment declared. The confirmed total remains unchanged until verification.'));
   }
 
+  function renderMessagesMarkup(messages, currentUserId) {
+    return messages.length
+      ? messages.map((msg) => {
+          if (msg.system) return `<div class="chat-message chat-system"><span>${escapeHTML(msg.content)}</span></div>`;
+          const isMine = msg.authorId === currentUserId;
+          const timeLabel = formatMessageTime(msg.createdAt);
+          return `<div class="chat-message ${isMine ? 'chat-mine' : 'chat-theirs'}">${!isMine ? `<div class="chat-author">${escapeHTML(msg.author || '')}</div>` : ''}<div class="chat-bubble">${escapeHTML(msg.content)}</div>${timeLabel ? `<div class="chat-time">${timeLabel}</div>` : ''}</div>`;
+        }).join('')
+      : `<div class="chat-empty"><i class="fas fa-comment-dots"></i><span>${text('Aucun message pour le moment. Soyez la première à écrire !', 'No messages yet. Be the first to write!')}</span></div>`;
+  }
+
   async function showDiscussion(group) {
     if (getUser().source === 'firebase') group.messages = await window.FirebaseClient.getGroupMessages(group.id);
     const currentUserId = getUser().id;
     const msgs = group.messages || [];
-    const messagesHtml = msgs.length
-      ? msgs.map((msg) => {
-          if (msg.system) {
-            return `<div class="chat-message chat-system"><span>${escapeHTML(msg.content)}</span></div>`;
-          }
-          const isMine = msg.authorId === currentUserId;
-          const timeLabel = formatMessageTime(msg.createdAt);
-          return `<div class="chat-message ${isMine ? 'chat-mine' : 'chat-theirs'}">
-            ${!isMine ? `<div class="chat-author">${escapeHTML(msg.author || '')}</div>` : ''}
-            <div class="chat-bubble">${escapeHTML(msg.content)}</div>
-            ${timeLabel ? `<div class="chat-time">${timeLabel}</div>` : ''}
-          </div>`;
-        }).join('')
-      : `<div class="chat-empty"><i class="fas fa-comment-dots"></i><span>${text('Aucun message pour le moment. Soyez la première à écrire !', 'No messages yet. Be the first to write!')}</span></div>`;
+    const messagesHtml = renderMessagesMarkup(msgs, currentUserId);
 
     openModal(`<div class="discussion-header">
         <div class="discussion-title">
@@ -474,6 +573,17 @@ const GroupUI = (() => {
       if (chatEl) chatEl.scrollTop = chatEl.scrollHeight;
       document.querySelector('.chat-textarea')?.focus();
     }, 80);
+    stopMessages?.();
+    if (getUser().source === 'firebase' && window.FirebaseClient?.subscribeGroupMessages) {
+      stopMessages = window.FirebaseClient.subscribeGroupMessages(group.id, (messages) => {
+        group.messages = messages;
+        const chatEl = document.getElementById('chatMessages');
+        if (!chatEl) return;
+        const nearBottom = chatEl.scrollHeight - chatEl.scrollTop - chatEl.clientHeight < 100;
+        chatEl.innerHTML = renderMessagesMarkup(messages, currentUserId);
+        if (nearBottom) chatEl.scrollTop = chatEl.scrollHeight;
+      }, firebaseError);
+    }
   }
 
   async function sendMessage(form) {
@@ -520,6 +630,22 @@ const GroupUI = (() => {
       }
       if (event.target.closest('#createGroupBtn, [data-create-group]')) { showCreateGroup(); return; }
       if (event.target.closest('[data-join-group]')) { showJoinGroup(); return; }
+      const groupTab = event.target.closest('[data-group-tab]');
+      if (groupTab) {
+        activeGroupTab = groupTab.dataset.groupTab;
+        render();
+        return;
+      }
+      const joinPublicButton = event.target.closest('[data-join-public]');
+      if (joinPublicButton) {
+        joinPublic(findGroup(joinPublicButton.dataset.joinPublic)).catch(firebaseError);
+        return;
+      }
+      const detailsButton = event.target.closest('[data-details]');
+      if (detailsButton) {
+        showDetails(findGroup(detailsButton.dataset.details)).catch(firebaseError);
+        return;
+      }
       const invite = event.target.closest('[data-invite]');
       if (invite) { showInvite(findGroup(invite.dataset.invite)); return; }
       const copyInvite = event.target.closest('[data-copy-invite]');
@@ -591,6 +717,8 @@ const GroupUI = (() => {
     window.addEventListener('firebase-auth-state', (event) => applyFirebaseUser(event.detail));
     window.addEventListener('firebase-auth-error', (event) => firebaseError(event.detail));
     window.addEventListener('firebase-new-user', (event) => showWelcome(event.detail?.name));
+    window.addEventListener('firebase-ready', startPublicGroupsSubscription);
+    startPublicGroupsSubscription();
     render();
   }
   return { init, openCreateForProduct, showAuth, render };
