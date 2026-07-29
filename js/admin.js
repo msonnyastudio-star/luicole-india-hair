@@ -264,7 +264,12 @@ async function confirmPayment(groupId, contributionId) {
   const contributionRef = doc(groupRef, 'contributions', contributionId);
   const referenceRef = doc(db, 'paymentReferences', referenceDocumentId(payment.reference));
   let completed = false;
+  let transactionDeletedProofs = 0;
   try {
+    // The current proof set is attached to the same transaction when the goal
+    // is reached. The follow-up purge below catches any late or excess proof.
+    const proofSnapshot = await getDocs(query(collection(db, 'paymentProofs'), where('groupId', '==', groupId)));
+    const proofRefs = proofSnapshot.docs.slice(0, 450).map((item) => item.ref);
     await runTransaction(db, async (transaction) => {
       const [groupSnapshot, contributionSnapshot, referenceSnapshot] = await Promise.all([
         transaction.get(groupRef),
@@ -302,6 +307,10 @@ async function confirmPayment(groupId, contributionId) {
       };
       if (completed) groupUpdate.completedAt = serverTimestamp();
       transaction.update(groupRef, groupUpdate);
+      if (completed) {
+        proofRefs.forEach((proofRef) => transaction.delete(proofRef));
+        transactionDeletedProofs = proofRefs.length;
+      }
       transaction.set(doc(collection(groupRef, 'messages')), {
         system: true,
         content: completed ? 'Objectif atteint ! Les preuves privées de paiement sont maintenant supprimées.' : `Une cotisation de ${money(amount)} a été confirmée par Luciole.`,
@@ -313,7 +322,7 @@ async function confirmPayment(groupId, contributionId) {
       return;
     }
     try {
-      const deletedProofs = await purgeGroupProofs(groupId);
+      const deletedProofs = transactionDeletedProofs + await purgeGroupProofs(groupId);
       alert(`✅ Paiement confirmé, objectif atteint et ${deletedProofs} preuve(s) privée(s) supprimée(s).`);
     } catch (cleanupError) {
       console.error('Payment confirmed, but proof cleanup failed:', cleanupError);
@@ -328,14 +337,16 @@ async function rejectPayment(groupId, contributionId, proofId) {
   const reason = prompt('Motif du refus (visible dans le suivi administratif) :', 'Référence introuvable ou informations incorrectes');
   if (reason === null) return;
   try {
-    await setDoc(doc(db, 'groups', groupId, 'contributions', contributionId), {
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'groups', groupId, 'contributions', contributionId), {
       status: 'rejected',
       rejectionReason: reason.trim().slice(0, 300),
       rejectedBy: currentAdmin.uid,
       rejectedAt: serverTimestamp(),
       proofDeletedAt: serverTimestamp()
     }, { merge: true });
-    await deleteDoc(doc(db, 'paymentProofs', proofId)).catch(() => {});
+    batch.delete(doc(db, 'paymentProofs', proofId));
+    await batch.commit();
     alert('Cotisation refusée et capture privée supprimée.');
   } catch (error) {
     alert(`Refus impossible : ${error.message}`);
