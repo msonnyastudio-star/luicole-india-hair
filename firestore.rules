@@ -13,14 +13,18 @@ service cloud.firestore {
     }
 
     match /groups/{groupId} {
-      allow get: if isAcceptedMember(groupId)
+      allow get: if isGeneralAdmin()
+        || isAcceptedMember(groupId)
         || (resource.data.privacy in ['public', 'discoverable'] && resource.data.status == 'funding');
       // A creator can recover their own groups after reconnecting. The client
       // query is constrained with where('creatorId', '==', request.auth.uid).
-      allow list: if (resource.data.privacy in ['public', 'discoverable'] && resource.data.status == 'funding')
+      allow list: if isGeneralAdmin()
+        || (resource.data.privacy in ['public', 'discoverable'] && resource.data.status == 'funding')
         || (signedIn() && resource.data.creatorId == request.auth.uid);
       allow create: if signedIn() && request.resource.data.creatorId == request.auth.uid;
-      allow update, delete: if isGeneralAdmin() || (isAcceptedMember(groupId) && resource.data.creatorId == request.auth.uid);
+      // Financial totals and completion status are protected by the admin
+      // confirmation transaction.
+      allow update, delete: if isGeneralAdmin();
 
       match /members/{userId} {
         // A member can read the member list of a group they belong to.  The
@@ -47,17 +51,37 @@ service cloud.firestore {
         allow update, delete: if isGeneralAdmin() || (isAcceptedMember(groupId) && get(/databases/$(database)/documents/groups/$(groupId)).data.creatorId == request.auth.uid);
       }
       match /contributions/{contributionId} {
-        allow read: if isAcceptedMember(groupId);
-        allow create: if isAcceptedMember(groupId) && request.resource.data.memberId == request.auth.uid && request.resource.data.status in ['draft', 'declared'];
+        allow read: if isGeneralAdmin() || (signedIn() && resource.data.memberId == request.auth.uid);
+        allow create: if isAcceptedMember(groupId)
+          && get(/databases/$(database)/documents/groups/$(groupId)).data.status == 'funding'
+          && request.resource.data.memberId == request.auth.uid
+          && request.resource.data.status == 'declared'
+          && request.resource.data.proofId == contributionId
+          && request.resource.data.amount is number
+          && request.resource.data.amount > 0
+          && request.resource.data.reference is string
+          && request.resource.data.reference.size() >= 4
+          && (
+            (
+              request.resource.data.paymentMethod == 'orange'
+              && request.resource.data.recipientNumber == '+237657946480'
+              && request.resource.data.recipientName == 'Assom Nang Galine'
+            )
+            || (
+              request.resource.data.paymentMethod == 'mtn'
+              && request.resource.data.recipientNumber == '+237654884788'
+              && request.resource.data.recipientName == 'Tchapga Gaetan'
+            )
+          )
+          && getAfter(/databases/$(database)/documents/paymentProofs/$(contributionId)).data.uploaderId == request.auth.uid
+          && getAfter(/databases/$(database)/documents/paymentProofs/$(contributionId)).data.groupId == groupId;
         allow update, delete: if isGeneralAdmin();
       }
       match /messages/{messageId} {
         allow read: if isAcceptedMember(groupId);
-        // System messages (no authorId) can be written by the group creator or admin.
-        allow create: if isAcceptedMember(groupId) && (
-          (request.resource.data.system == true) ||
-          (request.resource.data.authorId == request.auth.uid && request.resource.data.system == false)
-        );
+        allow create: if isGeneralAdmin()
+          || (isAcceptedMember(groupId) && request.resource.data.authorId == request.auth.uid && request.resource.data.system == false)
+          || (isAcceptedMember(groupId) && request.resource.data.system == true && get(/databases/$(database)/documents/groups/$(groupId)).data.creatorId == request.auth.uid);
         allow update: if isGeneralAdmin() || (isAcceptedMember(groupId) && resource.data.authorId == request.auth.uid && request.time < resource.data.createdAt + duration.value(15, 'm'));
         allow delete: if isGeneralAdmin() || (isAcceptedMember(groupId) && resource.data.authorId == request.auth.uid);
       }
@@ -87,6 +111,23 @@ service cloud.firestore {
         && request.resource.data.creatorId == request.auth.uid
         && request.resource.data.inviteCode == inviteCode;
       allow update, delete: if isGeneralAdmin() || (signedIn() && resource.data.creatorId == request.auth.uid);
+    }
+    match /paymentProofs/{proofId} {
+      allow create: if signedIn()
+        && request.resource.data.proofId == proofId
+        && request.resource.data.contributionId == proofId
+        && request.resource.data.uploaderId == request.auth.uid
+        && request.resource.data.groupId is string
+        && request.resource.data.dataUrl is string
+        && request.resource.data.dataUrl.size() <= 750000
+        && request.resource.data.size is number
+        && request.resource.data.size > 0
+        && request.resource.data.size <= 460800
+        && getAfter(/databases/$(database)/documents/groups/$(request.resource.data.groupId)/contributions/$(proofId)).data.memberId == request.auth.uid;
+      allow read, update, delete: if isGeneralAdmin();
+    }
+    match /paymentReferences/{referenceId} {
+      allow read, write: if isGeneralAdmin();
     }
     match /products/{productId} {
       allow get: if resource.data.published == true || isGeneralAdmin();

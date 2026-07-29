@@ -1,9 +1,25 @@
 /* Firebase Authentication drives the private group interface.
- * Payment confirmation and private-file URLs remain server-only operations.
+ * Payment proofs are compressed, private and readable only by an administrator.
  */
 const GroupUI = (() => {
   const USER_KEY = 'luciole_group_user';
   const GROUPS_KEY = 'luciole_contribution_groups';
+  const PAYMENT_ACCOUNTS = Object.freeze({
+    orange: {
+      operator: 'Orange Money',
+      number: '+237657946480',
+      displayNumber: '+237 657 946 480',
+      accountName: 'Assom Nang Galine'
+    },
+    mtn: {
+      operator: 'MTN Mobile Money',
+      number: '+237654884788',
+      displayNumber: '+237 654 884 788',
+      accountName: 'Tchapga Gaetan'
+    }
+  });
+  const MAX_PROOF_SOURCE_BYTES = 10 * 1024 * 1024;
+  const MAX_PROOF_STORED_BYTES = 450 * 1024;
   let pendingProduct = null;
   let firestoreGroups = null;
   let publicGroups = null;
@@ -26,6 +42,57 @@ const GroupUI = (() => {
     const values = window.crypto?.getRandomValues ? window.crypto.getRandomValues(new Uint32Array(8)) : Array.from({ length: 8 }, () => Math.floor(Math.random() * 0xffffffff));
     return `LUC-${Array.from(values, (value) => alphabet[value % alphabet.length]).join('')}`;
   };
+
+  const blobToDataUrl = (blob) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error(text('Impossible de lire la capture.', 'Unable to read the screenshot.')));
+    reader.readAsDataURL(blob);
+  });
+
+  const loadProofImage = async (file) => {
+    if (window.createImageBitmap) return window.createImageBitmap(file);
+    const source = await blobToDataUrl(file);
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error(text('Cette image ne peut pas être ouverte.', 'This image cannot be opened.')));
+      image.src = source;
+    });
+  };
+
+  async function compressPaymentProof(file) {
+    if (!(file instanceof File) || !file.size) throw new Error(text('Ajoutez la capture du reçu de paiement.', 'Add a screenshot of the payment receipt.'));
+    if (!/^image\/(jpeg|png|webp)$/i.test(file.type)) throw new Error(text('La preuve doit être une image JPG, PNG ou WebP.', 'The proof must be a JPG, PNG or WebP image.'));
+    if (file.size > MAX_PROOF_SOURCE_BYTES) throw new Error(text('La capture dépasse 10 Mo.', 'The screenshot is larger than 10 MB.'));
+
+    const image = await loadProofImage(file);
+    const originalWidth = image.width || image.naturalWidth;
+    const originalHeight = image.height || image.naturalHeight;
+    const initialScale = Math.min(1, 1400 / originalWidth, 2000 / originalHeight);
+    let output = null;
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const scale = initialScale * Math.pow(0.82, attempt);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(originalWidth * scale));
+      canvas.height = Math.max(1, Math.round(originalHeight * scale));
+      const context = canvas.getContext('2d', { alpha: false });
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      const quality = Math.max(0.48, 0.82 - (attempt * 0.08));
+      output = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+      if (output && output.size <= MAX_PROOF_STORED_BYTES) break;
+    }
+    image.close?.();
+    if (!output || output.size > MAX_PROOF_STORED_BYTES) throw new Error(text('La capture reste trop volumineuse après compression.', 'The screenshot is still too large after compression.'));
+    return {
+      dataUrl: await blobToDataUrl(output),
+      contentType: output.type,
+      size: output.size,
+      originalName: file.name.slice(0, 120)
+    };
+  }
   const firebaseError = (error) => {
     if (error?.silent) return;
     const messages = {
@@ -132,11 +199,12 @@ const GroupUI = (() => {
       const percentage = Math.min(100, Math.round((confirmed / group.targetAmount) * 100));
       const declaredCount = (group.contributions || []).filter((item) => item.status === 'declared').length;
       const alreadyMember = Boolean(getUser() && getGroups().some((item) => item.id === group.id));
+      const completed = group.status === 'completed' || remaining <= 0;
       const publicActions = `<button type="button" class="btn btn-outline" data-details="${group.id}"><i class="fas fa-eye"></i> ${text('Voir le détail', 'View details')}</button><button type="button" class="btn btn-primary" data-join-public="${group.id}"><i class="fas ${alreadyMember ? 'fa-arrow-right' : 'fa-hand-sparkles'}"></i> ${alreadyMember ? text('Ouvrir', 'Open') : text('Rejoindre', 'Join')}</button>`;
-      const privateActions = `<button type="button" class="btn btn-outline" data-details="${group.id}"><i class="fas fa-eye"></i> ${text('Détails', 'Details')}</button>${group.privacy === 'private' ? `<button type="button" class="btn btn-outline" data-invite="${group.id}"><i class="fas fa-user-plus"></i> ${text('Inviter', 'Invite')}</button>` : ''}<button type="button" class="btn btn-outline" data-contribute="${group.id}">${text('Cotiser', 'Contribute')}</button><button type="button" class="btn btn-primary" data-discussion="${group.id}">${text('Discussion', 'Chat')}</button>`;
+      const privateActions = `<button type="button" class="btn btn-outline" data-details="${group.id}"><i class="fas fa-eye"></i> ${text('Détails', 'Details')}</button>${!completed && group.privacy === 'private' ? `<button type="button" class="btn btn-outline" data-invite="${group.id}"><i class="fas fa-user-plus"></i> ${text('Inviter', 'Invite')}</button>` : ''}${completed ? `<span class="group-completed-label"><i class="fas fa-circle-check"></i> ${text('Objectif atteint', 'Target reached')}</span>` : `<button type="button" class="btn btn-outline" data-contribute="${group.id}">${text('Cotiser', 'Contribute')}</button>`}<button type="button" class="btn btn-primary" data-discussion="${group.id}">${text('Discussion', 'Chat')}</button>`;
       return `<article class="group-card ${publicCard ? 'group-card-public' : 'group-card-private'}">
         <div class="group-card-content">
-          <div class="group-card-top"><div class="group-title-wrap"><span class="group-community-icon"><i class="fas fa-users"></i></span><div><h3>${escapeHTML(group.name)}</h3><p class="group-card-product">${escapeHTML(group.productName)} · ${escapeHTML(group.variant)}</p></div></div><span class="group-status"><i class="fas ${group.privacy === 'private' ? 'fa-lock' : 'fa-globe-africa'}"></i> ${group.privacy === 'private' ? text('Privé', 'Private') : text('Public', 'Public')}</span></div>
+          <div class="group-card-top"><div class="group-title-wrap"><span class="group-community-icon"><i class="fas fa-users"></i></span><div><h3>${escapeHTML(group.name)}</h3><p class="group-card-product">${escapeHTML(group.productName)} · ${escapeHTML(group.variant)}</p></div></div><span class="group-status"><i class="fas ${completed ? 'fa-circle-check' : group.privacy === 'private' ? 'fa-lock' : 'fa-globe-africa'}"></i> ${completed ? text('Terminé', 'Completed') : group.privacy === 'private' ? text('Privé', 'Private') : text('Public', 'Public')}</span></div>
           <p class="group-beneficiary"><i class="fas fa-gift"></i> ${text('Bénéficiaire', 'Beneficiary')}: ${escapeHTML(group.beneficiary)}</p>
           <div class="group-amounts"><span>${text('Confirmé', 'Confirmed')} <strong>${money(confirmed)}</strong></span><span>${text('Reste', 'Remaining')} ${money(remaining)}</span></div>
           <div class="group-progress" aria-label="${text('Progression', 'Progress')} ${percentage}%"><span style="width:${percentage}%"></span></div>
@@ -492,26 +560,41 @@ const GroupUI = (() => {
       <div class="group-detail-grid">
         <section><h3><i class="fas fa-calendar-days"></i> ${text('Organisation', 'Schedule')}</h3><p>${frequencyLabel(details.frequency)} · ${text('Début', 'Starts')} ${escapeHTML(details.startDate || text('à confirmer', 'to be confirmed'))}</p><p>${text('Bénéficiaire', 'Beneficiary')} : <strong>${escapeHTML(details.beneficiary)}</strong></p></section>
         <section><h3><i class="fas fa-users"></i> ${text('Membres', 'Members')}</h3>${isMember ? (members.length ? `<ul>${members.map((member) => `<li>${escapeHTML(member.name || text('Membre Luciole', 'Luciole member'))}${member.role === 'group_admin' ? ` <small>· Admin</small>` : ''}</li>`).join('')}</ul>` : `<p>${text('La liste se synchronise…', 'The list is syncing…')}</p>`) : `<p>${text('La liste des membres est réservée au groupe.', 'The member list is reserved for the group.')}</p>`}</section>
-        <section><h3><i class="fas fa-clock-rotate-left"></i> ${text('Historique', 'History')}</h3>${isMember ? (confirmedHistory.length ? `<ul>${confirmedHistory.map((item) => `<li>${money(item.amount)} · ${escapeHTML(item.senderName || text('Membre', 'Member'))}</li>`).join('')}</ul>` : `<p>${text('Aucune cotisation confirmée pour le moment.', 'No confirmed contribution yet.')}</p>`) : `<p>${money(remaining)} ${text('restent à collecter.', 'remain to be collected.')}</p>`}</section>
+        <section><h3><i class="fas fa-clock-rotate-left"></i> ${text('Mes cotisations', 'My contributions')}</h3>${isMember ? (confirmedHistory.length ? `<ul>${confirmedHistory.map((item) => `<li>${money(item.amount)} · ${escapeHTML(item.senderName || text('Membre', 'Member'))}</li>`).join('')}</ul>` : `<p>${text('Aucune de vos cotisations n’est confirmée pour le moment.', 'None of your contributions is confirmed yet.')}</p>`) : `<p>${money(remaining)} ${text('restent à collecter.', 'remain to be collected.')}</p>`}</section>
       </div>
-      <div class="group-detail-actions">${isMember ? `<button class="btn btn-outline" data-contribute="${details.id}">${text('Cotiser', 'Contribute')}</button><button class="btn btn-primary" data-discussion="${details.id}"><i class="fas fa-comments"></i> ${text('Ouvrir la discussion', 'Open chat')}</button>` : `<button class="btn btn-primary" data-join-public="${details.id}"><i class="fas fa-hand-sparkles"></i> ${text('Rejoindre ce groupe', 'Join this group')}</button>`}</div>`);
+      <div class="group-detail-actions">${isMember ? `${details.status === 'completed' || remaining <= 0 ? `<span class="group-completed-label"><i class="fas fa-circle-check"></i> ${text('Objectif atteint', 'Target reached')}</span>` : `<button class="btn btn-outline" data-contribute="${details.id}">${text('Cotiser', 'Contribute')}</button>`}<button class="btn btn-primary" data-discussion="${details.id}"><i class="fas fa-comments"></i> ${text('Ouvrir la discussion', 'Open chat')}</button>` : `<button class="btn btn-primary" data-join-public="${details.id}"><i class="fas fa-hand-sparkles"></i> ${text('Rejoindre ce groupe', 'Join this group')}</button>`}</div>`);
   }
 
   function findGroup(id) { return getGroups().find((group) => group.id === id) || (publicGroups || []).find((group) => group.id === id); }
   function updateGroup(updated) { saveGroups(getGroups().map((group) => group.id === updated.id ? updated : group)); }
 
   function showContribution(group) {
-    const remaining = GroupDomain.getRemaining(group.targetAmount, group.contributions || []);
+    const confirmed = Number(group.confirmedTotal) || GroupDomain.sumConfirmed(group.contributions || []);
+    const remaining = Math.max(0, Number(group.targetAmount) - confirmed);
+    if (group.status === 'completed' || remaining <= 0) return showToast(text('L’objectif de ce groupe est déjà atteint.', 'This group target has already been reached.'));
     openModal(`<h2>${text('Contribuer à', 'Contribute to')} « ${escapeHTML(group.name)} »</h2>
       <p>${text('Reste à collecter', 'Remaining to collect')}: <strong>${money(remaining)}</strong>. ${text('Une cotisation déclarée ne modifie pas le total tant qu’un administrateur général ne l’a pas confirmée.', 'A declared contribution does not change the total until a site administrator confirms it.')}</p>
       <form class="group-form" id="contributionForm" data-group-id="${group.id}">
+        <fieldset class="payment-account-picker">
+          <legend>${text('1. Choisissez le compte officiel Luciole', '1. Choose the official Luciole account')}</legend>
+          ${Object.entries(PAYMENT_ACCOUNTS).map(([key, account], index) => `<label class="payment-account-option">
+            <input type="radio" name="paymentMethod" value="${key}" ${index === 0 ? 'checked' : ''} required>
+            <span class="payment-account-logo ${key}">${key === 'orange' ? 'OM' : 'MTN'}</span>
+            <span><strong>${account.operator}</strong><small>${account.displayNumber}<br>${text('Nom', 'Name')} : ${account.accountName}</small></span>
+          </label>`).join('')}
+        </fieldset>
+        <p class="payment-security-note"><i class="fas fa-shield-halved"></i> ${text('Envoyez uniquement au numéro sélectionné ci-dessus. Luciole ne vous demandera jamais de payer sur un autre numéro dans la discussion du groupe.', 'Only send to the selected number above. Luciole will never ask you to pay another number in the group chat.')}</p>
         <label>${text('Montant envoyé', 'Amount sent')} (FCFA)<input name="amount" type="number" min="1" max="${remaining}" required></label>
-        <label>${text('Numéro Orange Money de l’expéditeur', 'Sender Orange Money number')}<input name="phone" inputmode="tel" required></label>
+        <label>${text('Numéro Mobile Money de l’expéditeur', 'Sender Mobile Money number')}<input name="phone" inputmode="tel" autocomplete="tel" required></label>
         <label>${text('Nom de l’expéditeur', 'Sender name')}<input name="senderName" required></label>
         <label>${text('Référence de transaction', 'Transaction reference')}<input name="reference" required maxlength="100"></label>
         <label>${text('Date et heure approximatives', 'Approximate date and time')}<input name="transferredAt" type="datetime-local" required></label>
+        <label class="payment-proof-field">${text('Capture du reçu de paiement', 'Payment receipt screenshot')} *
+          <input name="proof" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" required>
+          <small>${text('JPG, PNG ou WebP, 10 Mo maximum. L’image est compressée, privée et supprimée quand l’objectif du groupe est terminé.', 'JPG, PNG or WebP, up to 10 MB. The image is compressed, private and deleted when the group target is completed.')}</small>
+        </label>
         <label>${text('Note', 'Note')} <textarea name="note" maxlength="500" placeholder="${text('Facultatif', 'Optional')}"></textarea></label>
-        <p class="group-payment-warning">${text('Ne déclarez une cotisation que si vous avez réellement effectué le transfert. Une fausse déclaration peut entraîner la suspension de votre compte.', 'Only declare a contribution after making the transfer. A false declaration may result in your account being suspended.')}</p>
+        <p class="group-payment-warning">${text('La capture seule ne confirme pas le paiement. L’administrateur compare la référence avec le relevé du compte officiel avant validation.', 'The screenshot alone does not confirm payment. The administrator checks the reference against the official account statement before approval.')}</p>
         <button class="btn btn-primary" type="submit">${text('Déclarer le paiement', 'Declare payment')}</button>
       </form>`);
   }
@@ -519,20 +602,41 @@ const GroupUI = (() => {
   async function declareContribution(form) {
     const group = findGroup(form.dataset.groupId);
     const data = new FormData(form);
-    const remaining = GroupDomain.getRemaining(group.targetAmount, group.contributions || []);
+    const confirmed = Number(group.confirmedTotal) || GroupDomain.sumConfirmed(group.contributions || []);
+    const remaining = Math.max(0, Number(group.targetAmount) - confirmed);
     try { GroupDomain.assertContributionAmount(data.get('amount'), remaining); } catch (error) { showToast(error.message); return; }
-    const contribution = { id: createId('contribution'), memberId: getUser().id, amount: Number(data.get('amount')), senderPhone: data.get('phone').trim(), senderName: data.get('senderName').trim(), reference: data.get('reference').trim(), transferredAt: data.get('transferredAt'), note: data.get('note').trim(), status: 'declared', createdAt: new Date().toISOString() };
-    if (getUser().source === 'firebase') {
-      await window.FirebaseClient.declareContribution(group.id, contribution);
-      await refreshFirestoreGroups();
-    } else {
-      group.contributions.push(contribution);
-      group.messages.push({ system: true, content: text('Une cotisation a été déclarée et attend une vérification.', 'A contribution was declared and is awaiting verification.') });
-      updateGroup(group);
+    if (getUser()?.source !== 'firebase' || !window.FirebaseClient?.declareContribution) {
+      throw new Error(text('Reconnectez-vous avec Firebase pour sécuriser votre preuve de paiement.', 'Sign in with Firebase again to secure your payment proof.'));
     }
-    closeModal();
-    render();
-    showToast(text('Paiement déclaré. Le total confirmé reste inchangé jusqu’à vérification.', 'Payment declared. The confirmed total remains unchanged until verification.'));
+    const method = data.get('paymentMethod');
+    const recipient = PAYMENT_ACCOUNTS[method];
+    if (!recipient) throw new Error(text('Choisissez Orange Money ou MTN Mobile Money.', 'Choose Orange Money or MTN Mobile Money.'));
+    const submitButton = form.querySelector('button[type="submit"]');
+    setButtonLoading(submitButton, true, text('Sécurisation de la preuve…', 'Securing proof…'));
+    try {
+      const proof = await compressPaymentProof(data.get('proof'));
+      const contribution = {
+        memberId: getUser().id,
+        amount: Number(data.get('amount')),
+        paymentMethod: method,
+        recipientOperator: recipient.operator,
+        recipientNumber: recipient.number,
+        recipientName: recipient.accountName,
+        senderPhone: data.get('phone').trim(),
+        senderName: data.get('senderName').trim(),
+        reference: data.get('reference').trim(),
+        transferredAt: data.get('transferredAt'),
+        note: data.get('note').trim(),
+        status: 'declared'
+      };
+      await window.FirebaseClient.declareContribution(group.id, contribution, proof);
+      await refreshFirestoreGroups();
+      closeModal();
+      render();
+      showToast(text('Paiement déclaré avec sa preuve privée. Il attend la vérification de Luciole.', 'Payment declared with its private proof. It is awaiting Luciole verification.'));
+    } finally {
+      setButtonLoading(submitButton, false);
+    }
   }
 
   function renderMessagesMarkup(messages, currentUserId) {

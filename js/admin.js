@@ -10,14 +10,18 @@ import {
 } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js';
 import {
   collection,
+  collectionGroup,
   deleteDoc,
   doc,
   getDoc,
   getDocs,
   getFirestore,
   onSnapshot,
+  query,
+  runTransaction,
   serverTimestamp,
   setDoc,
+  where,
   writeBatch
 } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
 
@@ -38,12 +42,16 @@ const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 let products = [];
+let pendingPayments = [];
 let stopProducts = null;
+let stopPayments = null;
 let currentAdmin = null;
+let paymentLoadVersion = 0;
 
 const byId = (id) => document.getElementById(id);
 const escapeHTML = (value = '') => String(value).replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
 const toNumber = (value) => Math.max(0, Math.round(Number(value) || 0));
+const money = (value) => `${new Intl.NumberFormat('fr-FR').format(Number(value) || 0)} FCFA`;
 
 function setLoginStatus(message, error = false) {
   const element = byId('adminLoginStatus');
@@ -145,6 +153,195 @@ function subscribeProducts() {
   });
 }
 
+function paymentDate(value) {
+  const date = value?.toDate?.() || (value ? new Date(value) : null);
+  return date && !Number.isNaN(date.getTime()) ? date.toLocaleString('fr-FR') : 'Non précisée';
+}
+
+function paymentTimestamp(value) {
+  if (typeof value?.toMillis === 'function') return value.toMillis();
+  const date = value ? new Date(value) : null;
+  return date && !Number.isNaN(date.getTime()) ? date.getTime() : 0;
+}
+
+function renderPayments() {
+  const tbody = byId('paymentsTableBody');
+  if (!tbody) return;
+  byId('statPending').textContent = pendingPayments.length;
+  byId('paymentsCount').textContent = `${pendingPayments.length} paiement(s) en attente`;
+  if (!pendingPayments.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="adm-empty-row"><i class="fas fa-circle-check"></i> Aucune cotisation en attente.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = pendingPayments.map((payment) => `<tr>
+    <td><div class="adm-product-name">${escapeHTML(payment.groupName)}</div><div class="adm-product-id">${escapeHTML(payment.groupId)}</div></td>
+    <td><strong>${escapeHTML(payment.senderName || 'Membre')}</strong><div class="adm-product-id">${escapeHTML(payment.senderPhone || '')}<br>${escapeHTML(paymentDate(payment.transferredAt))}</div></td>
+    <td><strong>${escapeHTML(payment.recipientOperator || payment.paymentMethod || '')}</strong><div class="adm-product-id">${escapeHTML(payment.recipientNumber || '')}<br>${escapeHTML(payment.recipientName || '')}</div></td>
+    <td><strong>${money(payment.amount)}</strong></td>
+    <td><strong>${escapeHTML(payment.reference || '')}</strong><div class="adm-product-id">${escapeHTML(payment.note || '')}</div></td>
+    <td><span class="adm-payment-status">À vérifier</span></td>
+    <td><div class="adm-payment-actions">
+      <button class="proof" onclick="showPaymentProof('${escapeHTML(payment.proofId || payment.id)}')"><i class="fas fa-image"></i> Preuve</button>
+      <button class="confirm" onclick="confirmPayment('${escapeHTML(payment.groupId)}','${escapeHTML(payment.id)}')"><i class="fas fa-check"></i> Confirmer</button>
+      <button class="reject" onclick="rejectPayment('${escapeHTML(payment.groupId)}','${escapeHTML(payment.id)}','${escapeHTML(payment.proofId || payment.id)}')"><i class="fas fa-xmark"></i> Refuser</button>
+    </div></td>
+  </tr>`).join('');
+}
+
+function subscribePayments() {
+  stopPayments?.();
+  const pendingQuery = query(collectionGroup(db, 'contributions'), where('status', '==', 'declared'));
+  stopPayments = onSnapshot(pendingQuery, async (snapshot) => {
+    const version = ++paymentLoadVersion;
+    try {
+      const rows = await Promise.all(snapshot.docs.map(async (item) => {
+        const groupRef = item.ref.parent.parent;
+        const groupSnapshot = await getDoc(groupRef);
+        return {
+          id: item.id,
+          groupId: groupRef.id,
+          groupName: groupSnapshot.exists() ? (groupSnapshot.data().name || 'Groupe Luciole') : 'Groupe Luciole',
+          ...item.data()
+        };
+      }));
+      if (version !== paymentLoadVersion) return;
+      pendingPayments = rows.sort((a, b) => paymentTimestamp(b.createdAt) - paymentTimestamp(a.createdAt));
+      renderPayments();
+    } catch (error) {
+      console.error(error);
+      tbodyPaymentError(error);
+    }
+  }, tbodyPaymentError);
+}
+
+function tbodyPaymentError(error) {
+  const tbody = byId('paymentsTableBody');
+  if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="adm-empty-row" style="color:var(--adm-danger)">Impossible de charger les cotisations : ${escapeHTML(error.message)}</td></tr>`;
+}
+
+async function showPaymentProof(proofId) {
+  const dialog = byId('paymentProofDialog');
+  const image = byId('paymentProofImage');
+  image.removeAttribute('src');
+  try {
+    const snapshot = await getDoc(doc(db, 'paymentProofs', proofId));
+    if (!snapshot.exists()) throw new Error('Cette preuve a déjà été supprimée.');
+    const proof = snapshot.data();
+    if (!/^data:image\/(jpeg|png|webp);base64,/i.test(proof.dataUrl || '')) throw new Error('Format de preuve invalide.');
+    image.src = proof.dataUrl;
+    dialog.showModal();
+  } catch (error) {
+    alert(`Impossible d’ouvrir la preuve : ${error.message}`);
+  }
+}
+
+function closePaymentProof() {
+  byId('paymentProofImage').removeAttribute('src');
+  byId('paymentProofDialog').close();
+}
+
+function referenceDocumentId(reference) {
+  return encodeURIComponent(String(reference || '').trim().toUpperCase()).slice(0, 900);
+}
+
+async function purgeGroupProofs(groupId) {
+  const snapshot = await getDocs(query(collection(db, 'paymentProofs'), where('groupId', '==', groupId)));
+  for (let start = 0; start < snapshot.docs.length; start += 400) {
+    const batch = writeBatch(db);
+    snapshot.docs.slice(start, start + 400).forEach((item) => batch.delete(item.ref));
+    await batch.commit();
+  }
+  return snapshot.size;
+}
+
+async function confirmPayment(groupId, contributionId) {
+  const payment = pendingPayments.find((item) => item.groupId === groupId && item.id === contributionId);
+  if (!payment) return alert('Cette cotisation n’est plus en attente.');
+  if (payment.memberId === currentAdmin.uid) return alert('Pour votre sécurité, vous ne pouvez pas confirmer votre propre cotisation. Utilisez un autre compte administrateur autorisé.');
+  if (!confirm(`Avez-vous vérifié ${money(payment.amount)} et la référence ${payment.reference} dans le relevé du compte officiel ?`)) return;
+
+  const groupRef = doc(db, 'groups', groupId);
+  const contributionRef = doc(groupRef, 'contributions', contributionId);
+  const referenceRef = doc(db, 'paymentReferences', referenceDocumentId(payment.reference));
+  let completed = false;
+  try {
+    await runTransaction(db, async (transaction) => {
+      const [groupSnapshot, contributionSnapshot, referenceSnapshot] = await Promise.all([
+        transaction.get(groupRef),
+        transaction.get(contributionRef),
+        transaction.get(referenceRef)
+      ]);
+      if (!groupSnapshot.exists() || !contributionSnapshot.exists()) throw new Error('Groupe ou cotisation introuvable.');
+      const contribution = contributionSnapshot.data();
+      if (contribution.status !== 'declared') throw new Error('Cette cotisation a déjà été traitée.');
+      if (referenceSnapshot.exists() && referenceSnapshot.data().contributionId !== contributionId) throw new Error('Cette référence de transaction a déjà été confirmée.');
+      const group = groupSnapshot.data();
+      const confirmedTotal = Math.max(0, Number(group.confirmedTotal) || 0);
+      const amount = Math.max(0, Number(contribution.amount) || 0);
+      const target = Math.max(1, Number(group.targetAmount) || 1);
+      const remaining = Math.max(0, target - confirmedTotal);
+      if (!amount || amount > remaining) throw new Error(`Le montant dépasse le reste à collecter (${money(remaining)}). Refusez cette déclaration et demandez un montant corrigé.`);
+      const nextTotal = confirmedTotal + amount;
+      completed = nextTotal >= target;
+      transaction.set(referenceRef, {
+        reference: contribution.reference,
+        groupId,
+        contributionId,
+        confirmedBy: currentAdmin.uid,
+        confirmedAt: serverTimestamp()
+      });
+      transaction.update(contributionRef, {
+        status: 'confirmed',
+        confirmedBy: currentAdmin.uid,
+        confirmedAt: serverTimestamp()
+      });
+      const groupUpdate = {
+        confirmedTotal: nextTotal,
+        status: completed ? 'completed' : 'funding',
+        updatedAt: serverTimestamp()
+      };
+      if (completed) groupUpdate.completedAt = serverTimestamp();
+      transaction.update(groupRef, groupUpdate);
+      transaction.set(doc(collection(groupRef, 'messages')), {
+        system: true,
+        content: completed ? 'Objectif atteint ! Les preuves privées de paiement sont maintenant supprimées.' : `Une cotisation de ${money(amount)} a été confirmée par Luciole.`,
+        createdAt: serverTimestamp()
+      });
+    });
+    if (!completed) {
+      alert('✅ Paiement confirmé après vérification du relevé officiel.');
+      return;
+    }
+    try {
+      const deletedProofs = await purgeGroupProofs(groupId);
+      alert(`✅ Paiement confirmé, objectif atteint et ${deletedProofs} preuve(s) privée(s) supprimée(s).`);
+    } catch (cleanupError) {
+      console.error('Payment confirmed, but proof cleanup failed:', cleanupError);
+      alert('⚠️ Le paiement est confirmé et le groupe est terminé, mais le nettoyage des captures a échoué. Réessayez depuis une connexion stable.');
+    }
+  } catch (error) {
+    alert(`Confirmation impossible : ${error.message}`);
+  }
+}
+
+async function rejectPayment(groupId, contributionId, proofId) {
+  const reason = prompt('Motif du refus (visible dans le suivi administratif) :', 'Référence introuvable ou informations incorrectes');
+  if (reason === null) return;
+  try {
+    await setDoc(doc(db, 'groups', groupId, 'contributions', contributionId), {
+      status: 'rejected',
+      rejectionReason: reason.trim().slice(0, 300),
+      rejectedBy: currentAdmin.uid,
+      rejectedAt: serverTimestamp(),
+      proofDeletedAt: serverTimestamp()
+    }, { merge: true });
+    await deleteDoc(doc(db, 'paymentProofs', proofId)).catch(() => {});
+    alert('Cotisation refusée et capture privée supprimée.');
+  } catch (error) {
+    alert(`Refus impossible : ${error.message}`);
+  }
+}
+
 async function login() {
   setLoginStatus('Connexion sécurisée en cours…');
   try {
@@ -161,6 +358,8 @@ async function login() {
 async function logout() {
   stopProducts?.();
   stopProducts = null;
+  stopPayments?.();
+  stopPayments = null;
   await signOut(auth);
 }
 
@@ -333,7 +532,7 @@ function resetForm() {
   byId('pPublished').checked = true;
 }
 
-Object.assign(window, { login, logout, savePriceInline, saveProduct, editProduct, deleteProduct, resetForm });
+Object.assign(window, { login, logout, savePriceInline, saveProduct, editProduct, deleteProduct, resetForm, showPaymentProof, closePaymentProof, confirmPayment, rejectPayment });
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
@@ -353,6 +552,7 @@ onAuthStateChanged(auth, async (user) => {
     showPanel();
     await bootstrapProductsIfNeeded();
     subscribeProducts();
+    subscribePayments();
   } catch (error) {
     hidePanel();
     setLoginStatus(`Erreur Firestore : ${error.message}`, true);

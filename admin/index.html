@@ -232,6 +232,24 @@
       transition:background 0.2s;
     }
     .adm-btn-del:hover { background:#F9CCCC; }
+    .adm-payment-card { margin-bottom:28px; }
+    .adm-payment-accounts { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:10px; padding:16px 22px; background:#fffaf4; border-bottom:1px solid var(--adm-border); }
+    .adm-payment-account { display:flex; gap:10px; align-items:center; padding:11px 13px; border-radius:10px; background:white; border:1px solid #ead8c4; font-size:0.78rem; line-height:1.5; }
+    .adm-payment-account i { width:36px; height:36px; display:grid; place-items:center; border-radius:9px; background:var(--adm-petal); color:var(--adm-berry); }
+    .adm-payment-account strong { display:block; color:var(--adm-plum); }
+    .adm-payment-status { display:inline-block; padding:4px 9px; border-radius:50px; background:#fff4d6; color:#856000; font-size:0.7rem; font-weight:700; }
+    .adm-payment-actions { display:flex; flex-wrap:wrap; gap:6px; min-width:190px; }
+    .adm-payment-actions button { padding:7px 10px; border:0; border-radius:8px; cursor:pointer; font:600 0.72rem 'Montserrat',sans-serif; }
+    .adm-payment-actions .proof { background:var(--adm-lav); color:var(--adm-plum); }
+    .adm-payment-actions .confirm { background:#daf4e5; color:#12653c; }
+    .adm-payment-actions .reject { background:#fdecec; color:#a02a34; }
+    .adm-empty-row { padding:28px !important; text-align:center; color:var(--adm-gray); }
+    .adm-proof-dialog { width:min(92vw,720px); max-height:90vh; padding:0; border:0; border-radius:18px; box-shadow:0 22px 70px rgba(0,0,0,.35); }
+    .adm-proof-dialog::backdrop { background:rgba(24,15,35,.72); }
+    .adm-proof-head { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; color:white; background:var(--adm-grad); }
+    .adm-proof-head button { width:36px; height:36px; border:0; border-radius:50%; cursor:pointer; font-size:1.1rem; }
+    .adm-proof-body { padding:16px; background:#f5eef8; }
+    .adm-proof-body img { display:block; max-width:100%; max-height:72vh; margin:auto; border-radius:10px; background:white; }
 
     /* Responsive */
     @media (max-width:680px) {
@@ -295,10 +313,31 @@
         <div class="adm-stat-icon rose"><i class="fas fa-exclamation-triangle"></i></div>
         <div><div class="adm-stat-val" id="statStock">0</div><div class="adm-stat-lbl">Stock limité</div></div>
       </div>
+      <div class="adm-stat-card">
+        <div class="adm-stat-icon gold"><i class="fas fa-receipt"></i></div>
+        <div><div class="adm-stat-val" id="statPending">0</div><div class="adm-stat-lbl">Paiements à vérifier</div></div>
+      </div>
     </div>
 
     <!-- Form -->
     <div class="adm-content">
+      <div class="adm-table-card adm-payment-card">
+        <div class="adm-table-header">
+          <h3><i class="fas fa-shield-halved"></i> &nbsp;Validation des cotisations</h3>
+          <span id="paymentsCount">0 paiement(s) en attente</span>
+        </div>
+        <div class="adm-payment-accounts">
+          <div class="adm-payment-account"><i class="fas fa-mobile-screen"></i><span><strong>Orange Money · Assom Nang Galine</strong>+237 657 946 480</span></div>
+          <div class="adm-payment-account"><i class="fas fa-mobile-screen"></i><span><strong>MTN Mobile Money · Tchapga Gaetan</strong>+237 654 884 788</span></div>
+        </div>
+        <div class="adm-table-wrap">
+          <table class="adm-table">
+            <thead><tr><th>Groupe</th><th>Expéditeur</th><th>Destination</th><th>Montant</th><th>Référence</th><th>Statut</th><th>Actions</th></tr></thead>
+            <tbody id="paymentsTableBody"><tr><td colspan="7" class="adm-empty-row">Chargement des cotisations…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="adm-form-card" id="productForm">
         <div class="adm-form-header">
           <h3 id="formTitle"><i class="fas fa-plus-circle"></i> &nbsp;Ajouter un produit</h3>
@@ -450,6 +489,11 @@
       </div>
     </div>
   </div>
+
+  <dialog class="adm-proof-dialog" id="paymentProofDialog">
+    <div class="adm-proof-head"><strong>Preuve privée de paiement</strong><button type="button" onclick="closePaymentProof()" aria-label="Fermer">×</button></div>
+    <div class="adm-proof-body"><img id="paymentProofImage" alt="Capture du reçu de paiement"></div>
+  </dialog>
 
   <script src="../js/products.js"></script>
   <script type="text/plain" id="legacyAdminCode">

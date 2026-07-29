@@ -61,7 +61,7 @@ const GroupDomain = (() => {
       item.reference === contribution.reference
     );
     if (duplicatedReference) {
-      throw new Error('Cette référence Orange Money a déjà été confirmée.');
+      throw new Error('Cette référence Mobile Money a déjà été confirmée.');
     }
 
     assertContributionAmount(contribution.amount, getRemaining(targetAmount, contributions));

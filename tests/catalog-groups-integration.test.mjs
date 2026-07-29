@@ -40,3 +40,23 @@ test('les règles protègent les produits et les groupes privés', () => {
   assert.match(rules, /request\.resource\.data\.inviteCode is string/);
   assert.match(rules, /resource\.data\.privacy in \['public', 'discoverable'\]/);
 });
+
+test('les cotisations utilisent les comptes officiels et une preuve privée supprimable', () => {
+  const groups = read('js/groups-ui.js');
+  const firebase = read('js/firebase-client.js');
+  const admin = read('js/admin.js');
+  const rules = read('firestore.rules');
+  assert.match(groups, /\+237657946480/);
+  assert.match(groups, /Assom Nang Galine/);
+  assert.match(groups, /\+237654884788/);
+  assert.match(groups, /Tchapga Gaetan/);
+  assert.match(groups, /name="proof" type="file"/);
+  assert.match(groups, /compressPaymentProof/);
+  assert.match(firebase, /doc\(db, 'paymentProofs'/);
+  assert.match(admin, /runTransaction/);
+  assert.match(admin, /paymentReferences/);
+  assert.match(admin, /purgeGroupProofs/);
+  assert.match(rules, /match \/paymentProofs\/\{proofId\}/);
+  assert.match(rules, /data\.status == 'funding'/);
+  assert.match(rules, /allow read, update, delete: if isGeneralAdmin\(\)/);
+});

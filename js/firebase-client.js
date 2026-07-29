@@ -172,6 +172,7 @@ async function createContributionGroup(group, user) {
     priceSnapshot: group.priceSnapshot,
     inviteCode: group.inviteCode,
     memberCount: 1,
+    confirmedTotal: 0,
     frequency: group.frequency || 'monthly',
     startDate: group.startDate || null,
     maxMembers: Math.max(2, Number(group.maxMembers) || 10),
@@ -319,7 +320,7 @@ async function getMemberGroups(userId) {
       const groupSnapshot = await getDoc(groupRef);
       if (!groupSnapshot.exists()) return fallbackGroup;
       const [contributions, members] = await Promise.all([
-        getDocs(collection(groupRef, 'contributions')),
+        getDocs(query(collection(groupRef, 'contributions'), where('memberId', '==', userId))),
         getDocs(collection(groupRef, 'members'))
       ]);
       const loadedGroup = {
@@ -483,7 +484,7 @@ function subscribeMemberGroups(userId, onGroups, onError = console.error) {
           memberSubscriptions.set(group.id, stop);
         }
         if (!contributionSubscriptions.has(group.id)) {
-          const stop = onSnapshot(collection(db, 'groups', group.id, 'contributions'), refresh, onError);
+          const stop = onSnapshot(query(collection(db, 'groups', group.id, 'contributions'), where('memberId', '==', userId)), refresh, onError);
           contributionSubscriptions.set(group.id, stop);
         }
       });
@@ -592,11 +593,12 @@ async function joinPublicGroup(groupId, user) {
 }
 
 async function getGroupDetails(groupId) {
+  if (!auth.currentUser) throw new Error('Votre session a expiré.');
   const groupRef = doc(db, 'groups', groupId);
   const [groupSnapshot, membersSnapshot, contributionsSnapshot, messagesSnapshot] = await Promise.all([
     getDoc(groupRef),
     getDocs(collection(groupRef, 'members')),
-    getDocs(collection(groupRef, 'contributions')),
+    getDocs(query(collection(groupRef, 'contributions'), where('memberId', '==', auth.currentUser.uid))),
     getDocs(query(collection(groupRef, 'messages'), orderBy('createdAt', 'asc')))
   ]);
   if (!groupSnapshot.exists()) throw new Error('Groupe introuvable.');
@@ -617,12 +619,32 @@ function subscribeGroupMessages(groupId, onMessages, onError = console.error) {
   );
 }
 
-async function declareContribution(groupId, contribution) {
-  await addDoc(collection(db, 'groups', groupId, 'contributions'), {
+async function declareContribution(groupId, contribution, proof) {
+  if (!auth.currentUser) throw new Error('Votre session a expiré. Reconnectez-vous.');
+  if (!proof?.dataUrl || !proof?.size) throw new Error('Une preuve de paiement est obligatoire.');
+  const contributionRef = doc(collection(db, 'groups', groupId, 'contributions'));
+  const proofRef = doc(db, 'paymentProofs', contributionRef.id);
+  const batch = writeBatch(db);
+  batch.set(proofRef, {
+    proofId: contributionRef.id,
+    contributionId: contributionRef.id,
+    groupId,
+    uploaderId: auth.currentUser.uid,
+    dataUrl: proof.dataUrl,
+    contentType: proof.contentType || 'image/jpeg',
+    size: Number(proof.size) || 0,
+    originalName: proof.originalName || 'preuve-paiement.jpg',
+    status: 'private',
+    createdAt: serverTimestamp()
+  });
+  batch.set(contributionRef, {
     ...contribution,
+    contributionId: contributionRef.id,
+    proofId: contributionRef.id,
     status: 'declared',
     createdAt: serverTimestamp()
   });
+  await batch.commit();
 }
 
 async function getGroupMessages(groupId) {
