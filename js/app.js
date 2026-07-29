@@ -113,32 +113,69 @@ document.addEventListener('DOMContentLoaded', () => {
   setupNavbarScroll();
   updateProductShareMeta();
   openProductFromQuery();
-  applyFirestorePrices();
+  startFirestoreCatalogSync();
 });
 
-async function applyFirestorePrices() {
-  try {
-    const client = window.FirebaseClient;
-    if (!client || typeof client.fetchPriceOverrides !== 'function') return;
-    const overrides = await client.fetchPriceOverrides();
-    if (!overrides || !Object.keys(overrides).length) return;
-    let changed = false;
-    PRODUCTS_DATA.forEach(product => {
-      const price = overrides[String(product.id)];
-      if (typeof price === 'number' && price > 0 && product.referencePrice !== price) {
-        product.referencePrice = price;
-        product.lengths.forEach((variant) => {
-          variant.price = price;
-        });
-        changed = true;
-      }
-    });
-    if (changed) {
-      renderProducts(PRODUCTS_DATA);
+let stopCatalogSubscription = null;
+
+function reconcileCartWithCatalog() {
+  let changed = false;
+  let removed = 0;
+  cart = cart.map((item) => {
+    const product = PRODUCTS_DATA.find((candidate) => String(candidate.id) === String(item.id));
+    if (!product) {
+      removed += 1;
+      changed = true;
+      return null;
     }
-  } catch (e) {
-    console.warn('[Luciole] applyFirestorePrices :', e.message);
-  }
+    const variant = (product.lengths || []).find((candidate) => candidate.length === item.length);
+    const livePrice = getEffectivePrice(product, variant);
+    const next = {
+      ...item,
+      name: product.name,
+      image: product.images?.[0] || item.image,
+      type: product.type,
+      price: livePrice > 0 ? livePrice : item.price
+    };
+    if (JSON.stringify(next) !== JSON.stringify(item)) changed = true;
+    return next;
+  }).filter(Boolean);
+  if (changed) saveCart();
+  updateCartUI();
+  if (removed) showToast(tr('cart-unavailable-removed', 'Un produit qui n’est plus publié a été retiré du panier.'));
+}
+
+function startFirestoreCatalogSync() {
+  const subscribe = () => {
+    const client = window.FirebaseClient;
+    if (!client || typeof client.subscribePublishedProducts !== 'function' || stopCatalogSubscription) return false;
+    stopCatalogSubscription = client.subscribePublishedProducts((products) => {
+      // Keep the packaged catalogue only during the very first migration. As
+      // soon as Firestore contains products, every screen uses that live list.
+      if (!products.length) return;
+      PRODUCTS_DATA = products;
+      window.PRODUCTS_DATA = products;
+      localStorage.setItem('luciole_products', JSON.stringify(products));
+      localStorage.setItem('luciole_catalog_version', CATALOG_VERSION);
+      reconcileCartWithCatalog();
+      renderCategories();
+      renderProducts(PRODUCTS_DATA);
+      const openedId = currentProduct?.id;
+      if (openedId && document.getElementById('productModal')?.classList.contains('active')) {
+        const chosenLength = selectedLength?.length;
+        openProductModal(openedId);
+        const nextIndex = currentProduct?.lengths?.findIndex((variant) => variant.length === chosenLength) ?? -1;
+        if (nextIndex >= 0) {
+          selectedLength = currentProduct.lengths[nextIndex];
+          document.querySelectorAll('.length-btn').forEach((button, index) => button.classList.toggle('active', index === nextIndex));
+          updateModalPrice();
+        }
+      }
+      window.dispatchEvent(new CustomEvent('luciole-catalog-updated', { detail: products }));
+    }, (error) => console.warn('[Luciole] Catalogue Firestore indisponible :', error.message));
+    return true;
+  };
+  if (!subscribe()) window.addEventListener('firebase-ready', subscribe, { once: true });
 }
 
 function setupNavbarScroll() {
@@ -460,9 +497,6 @@ function openProductModal(id) {
         <button class="btn btn-whatsapp" onclick="orderOnWhatsApp()">
           <i class="fab fa-whatsapp"></i> ${tr('buy-now', 'Acheter maintenant')}
         </button>
-        <button class="btn btn-primary" onclick="openGroupPurchase()">
-          <i class="fas fa-users"></i> ${tr('buy-group', 'Acheter avec un groupe')}
-        </button>
       </div>
     </div>
   `;
@@ -694,24 +728,6 @@ Merci !`;
   window.open(getWhatsAppUrl(msg), '_blank');
 }
 
-function openGroupPurchase() {
-  if (!currentProduct || !selectedLength) return;
-  const price = getEffectivePrice(currentProduct, selectedLength);
-  if (!Number(price)) {
-    showToast(tr('group-price-needed', 'Renseignez le prix de cette taille dans l’administration avant de créer un groupe.'));
-    return;
-  }
-  const product = {
-    productId: currentProduct.id,
-    productName: currentProduct.name,
-    variant: selectedLength.length,
-    targetAmount: price
-  };
-  closeModal();
-  if (window.GroupUI) window.GroupUI.openCreateForProduct(product);
-  else showToast(tr('groups-loading', 'L’espace groupes est en cours de chargement.'));
-}
-
 function finalizeOrderWhatsApp() {
   if (cart.length === 0) {
     showToast(tr('cart-empty', 'Votre panier est vide'));
@@ -862,7 +878,6 @@ window.addToCart = addToCart;
 window.updateCartQty = updateCartQty;
 window.removeFromCart = removeFromCart;
 window.orderOnWhatsApp = orderOnWhatsApp;
-window.openGroupPurchase = openGroupPurchase;
 window.finalizeOrderWhatsApp = finalizeOrderWhatsApp;
 window.openGeneralWhatsApp = openGeneralWhatsApp;
 window.showLegal = showLegal;
@@ -893,7 +908,7 @@ const translations = {
     "adv3": "Commande rapide sur WhatsApp",
     "adv4": "Assistance personnalisée",
     "adv5": "Produits pour tous les styles",
-    "nav-groups": "Achats en groupe",
+    "nav-groups": "Groupes",
     "video-eyebrow": "En mouvement",
     "video-title": "Nos styles en vidéo",
     "video-sub": "Voyez le volume, la brillance et le mouvement de nos greffes et perruques avant de choisir votre coup de cœur.",
@@ -979,6 +994,7 @@ const translations = {
     "cart-empty-sub": "Découvrez nos collections premium",
     "cart-added": "Produit ajouté au panier",
     "cart-removed": "Produit retiré du panier",
+    "cart-unavailable-removed": "Un produit qui n’est plus publié a été retiré du panier.",
     "price-size-confirm": "Le prix de cette taille est à confirmer sur WhatsApp.",
     "group-price-needed": "Renseignez le prix de cette taille dans l’administration avant de créer un groupe.",
     "groups-loading": "L’espace groupes est en cours de chargement.",
@@ -1037,7 +1053,7 @@ const translations = {
     "adv3": "Fast order via WhatsApp",
     "adv4": "Personalized assistance",
     "adv5": "Products for every style",
-    "nav-groups": "Group purchases",
+    "nav-groups": "Groups",
     "video-eyebrow": "In motion",
     "video-title": "Our styles on video",
     "video-sub": "See the volume, shine and movement of our hair bundles and wigs before choosing your favourite.",
@@ -1123,6 +1139,7 @@ const translations = {
     "cart-empty-sub": "Discover our premium collections",
     "cart-added": "Product added to cart",
     "cart-removed": "Product removed from cart",
+    "cart-unavailable-removed": "A product that is no longer published was removed from your cart.",
     "price-size-confirm": "The price for this size must be confirmed on WhatsApp.",
     "group-price-needed": "Add a price for this size in the admin area before creating a group.",
     "groups-loading": "The group space is loading.",

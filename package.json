@@ -4,7 +4,7 @@
   "private": true,
   "description": "Luciole India Hair storefront and contribution groups",
   "scripts": {
-    "test": "node tests/group-domain.test.mjs",
-    "check": "node --check js/app.js && node --check js/group-domain.js && node --check js/groups-ui.js"
+    "test": "node --test tests/*.test.mjs",
+    "check": "node --check js/app.js && node --check js/group-domain.js && node --check js/groups-ui.js && node --check js/groups-page.js && node --check js/admin.js && node --check js/firebase-client.js"
   }
 }

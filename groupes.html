@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="Créez ou rejoignez un groupe Luciole India Hair et cotisez ensemble pour votre prochaine greffe.">
+  <title>Groupes | Luciole India Hair</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/groups-page.css">
+</head>
+<body class="groups-page" data-groups-page>
+  <nav class="navbar groups-navbar">
+    <a href="index.html" class="nav-logo" aria-label="Luciole India Hair — accueil">
+      <img src="images/logo-luciole.png" alt="" class="logo-img">
+      <div class="logo-text"><span>Luciole</span><small>India Hair</small></div>
+    </a>
+    <div class="nav-menu" id="mainMenu">
+      <a href="index.html" data-fr="Accueil" data-en="Home">Accueil</a>
+      <a href="index.html#nos-cheveux" data-fr="Nos cheveux" data-en="Our hair">Nos cheveux</a>
+      <a href="groupes.html" class="active" data-fr="Groupes" data-en="Groups">Groupes</a>
+      <a href="index.html#livraison" data-fr="Livraison" data-en="Delivery">Livraison</a>
+    </div>
+    <div class="nav-actions">
+      <div class="groups-lang-switch" aria-label="Langue">
+        <button type="button" data-set-lang="fr">FR</button>
+        <button type="button" data-set-lang="en">EN</button>
+      </div>
+      <button class="account-btn" id="accountBtn" type="button"><i class="fas fa-user"></i><span class="account-label">Mon espace</span></button>
+      <button class="menu-toggle" type="button" aria-label="Ouvrir le menu" aria-controls="mainMenu" aria-expanded="false"><span></span><span></span><span></span></button>
+    </div>
+  </nav>
+
+  <main>
+    <section class="groups-page-hero">
+      <div class="groups-orb orb-one"></div><div class="groups-orb orb-two"></div>
+      <div class="container groups-hero-grid">
+        <div class="groups-hero-copy">
+          <p class="groups-kicker"><i class="fas fa-sparkles"></i> <span data-fr="Les cercles Luciole" data-en="Luciole circles">Les cercles Luciole</span></p>
+          <h1 data-fr="Payez votre greffe doucement, ensemble" data-en="Pay for your hair gently, together">Payez votre greffe doucement, ensemble</h1>
+          <p data-fr="Créez votre cercle, choisissez la greffe et avancez à votre rythme grâce aux cotisations. Publique ou privée, chaque communauté garde un objectif clair et un espace de discussion." data-en="Create your circle, choose the hair and move at your own pace through contributions. Public or private, every community keeps a clear goal and its own discussion space.">Créez votre cercle, choisissez la greffe et avancez à votre rythme grâce aux cotisations. Publique ou privée, chaque communauté garde un objectif clair et un espace de discussion.</p>
+          <div class="groups-hero-actions">
+            <button class="btn btn-primary" id="createGroupBtn" type="button"><i class="fas fa-plus"></i> <span data-fr="Créer un groupe" data-en="Create a group">Créer un groupe</span></button>
+            <button class="btn btn-outline" type="button" data-join-group><i class="fas fa-key"></i> <span data-fr="J’ai un code" data-en="I have a code">J’ai un code</span></button>
+          </div>
+          <div class="groups-trust-row">
+            <span><i class="fas fa-shield-heart"></i> <b data-fr="Privé par code" data-en="Private by code">Privé par code</b></span>
+            <span><i class="fas fa-bolt"></i> <b data-fr="Mise à jour en direct" data-en="Live updates">Mise à jour en direct</b></span>
+            <span><i class="fas fa-comments"></i> <b data-fr="Discussion du groupe" data-en="Group chat">Discussion du groupe</b></span>
+          </div>
+        </div>
+        <div class="groups-hero-visual" aria-hidden="true">
+          <div class="circle-card circle-card-main"><span class="circle-avatars"><i></i><i></i><i></i></span><small>Girls Glow Circle</small><strong>72%</strong><div><span style="width:72%"></span></div></div>
+          <div class="circle-card circle-card-float"><i class="fas fa-heart"></i><span data-fr="Ensemble, on brille" data-en="Together, we glow">Ensemble, on brille</span></div>
+          <div class="hero-crown"><i class="fas fa-crown"></i></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="groups-workspace">
+      <div class="container">
+        <div class="groups-section-intro">
+          <p class="eyebrow" data-fr="Votre espace communautaire" data-en="Your community space">Votre espace communautaire</p>
+          <h2 data-fr="Un objectif, plusieurs forces" data-en="One goal, many strengths">Un objectif, plusieurs forces</h2>
+          <p data-fr="Explorez les cercles ouverts ou retrouvez uniquement les groupes privés dont vous êtes membre." data-en="Explore open circles or find only the private groups you belong to.">Explorez les cercles ouverts ou retrouvez uniquement les groupes privés dont vous êtes membre.</p>
+        </div>
+
+        <div class="groups-main-tabs" role="tablist" aria-label="Groupes">
+          <button class="active" type="button" role="tab" aria-selected="true" data-group-tab="public"><i class="fas fa-earth-africa"></i> <span data-fr="Groupes publics" data-en="Public groups">Groupes publics</span></button>
+          <button type="button" role="tab" aria-selected="false" data-group-tab="private"><i class="fas fa-lock"></i> <span data-fr="Mes groupes privés" data-en="My private groups">Mes groupes privés</span></button>
+        </div>
+
+        <div id="groupsAuthPrompt" class="groups-auth-prompt" hidden style="display:none">
+          <div><h3 data-fr="Votre espace privé vous attend" data-en="Your private space is waiting">Votre espace privé vous attend</h3><p data-fr="Connectez-vous pour retrouver vos groupes, cotisations, invitations et discussions." data-en="Sign in to find your groups, contributions, invitations and chats.">Connectez-vous pour retrouver vos groupes, cotisations, invitations et discussions.</p></div>
+          <button class="btn btn-primary" type="button" data-group-auth><i class="fas fa-right-to-bracket"></i> <span data-fr="Se connecter" data-en="Sign in">Se connecter</span></button>
+        </div>
+        <div id="groupsDashboard" class="groups-dashboard">
+          <div id="groupsGrid" class="groups-grid"></div>
+        </div>
+
+        <div class="group-safety groups-page-safety"><i class="fas fa-shield-heart"></i><div><strong data-fr="La confiance d’abord" data-en="Trust comes first">La confiance d’abord</strong><p data-fr="Pour un groupe privé, partagez votre code uniquement avec les personnes que vous connaissez. Les discussions, membres et cotisations restent réservés aux membres acceptés." data-en="For a private group, only share your code with people you know. Chats, members and contributions remain restricted to accepted members.">Pour un groupe privé, partagez votre code uniquement avec les personnes que vous connaissez. Les discussions, membres et cotisations restent réservés aux membres acceptés.</p></div></div>
+      </div>
+    </section>
+
+    <section class="groups-how">
+      <div class="container"><div class="groups-section-intro"><p class="eyebrow" data-fr="Simple comme 1, 2, 3" data-en="As easy as 1, 2, 3">Simple comme 1, 2, 3</p><h2 data-fr="Votre couronne se rapproche" data-en="Your crown gets closer">Votre couronne se rapproche</h2></div>
+        <div class="groups-how-grid">
+          <article><span>01</span><i class="fas fa-wand-magic-sparkles"></i><h3 data-fr="Créez" data-en="Create">Créez</h3><p data-fr="Choisissez le produit, l’objectif, la fréquence et la visibilité." data-en="Choose the product, goal, frequency and visibility.">Choisissez le produit, l’objectif, la fréquence et la visibilité.</p></article>
+          <article><span>02</span><i class="fas fa-people-arrows"></i><h3 data-fr="Rassemblez" data-en="Gather">Rassemblez</h3><p data-fr="Ouvrez votre cercle au public ou invitez vos proches avec un code." data-en="Open your circle to the public or invite people with a code.">Ouvrez votre cercle au public ou invitez vos proches avec un code.</p></article>
+          <article><span>03</span><i class="fas fa-gem"></i><h3 data-fr="Avancez" data-en="Progress">Avancez</h3><p data-fr="Suivez les cotisations confirmées et échangez dans la discussion." data-en="Track confirmed contributions and chat with the group.">Suivez les cotisations confirmées et échangez dans la discussion.</p></article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="groups-footer"><div class="container"><a href="index.html" class="footer-logo"><img src="images/logo-luciole.png" alt="Luciole India Hair"><span>Luciole India Hair</span></a><p data-fr="La beauté se partage, la confiance se construit." data-en="Beauty is shared, trust is built.">La beauté se partage, la confiance se construit.</p><a href="index.html#nos-cheveux" data-fr="Voir le catalogue" data-en="View catalogue">Voir le catalogue</a></div></footer>
+
+  <div class="group-modal" id="groupModal" aria-hidden="true"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <a href="https://wa.me/237654470561" class="floating-whatsapp" target="_blank" rel="noopener" aria-label="WhatsApp"><i class="fab fa-whatsapp"></i></a>
+
+  <script src="js/products.js" defer></script>
+  <script src="js/group-domain.js" defer></script>
+  <script src="js/groups-page.js" defer></script>
+  <script type="module" src="js/firebase-client.js"></script>
+  <script src="js/groups-ui.js" defer></script>
+</body>
+</html>

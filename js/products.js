@@ -139,3 +139,9 @@ const FAQ_EN = [
   { q: 'Can I request another colour or size?', a: 'Yes. Send us the product name or reference on WhatsApp and tell us the colour and size you need.' },
   { q: 'Do you deliver in Cameroon?', a: 'Yes. Availability and delivery time are confirmed on WhatsApp according to your city.' }
 ];
+
+// Explicit exports for the ES-module Firebase/admin scripts. The catalogue in
+// this file is only the first-install/fallback seed; Firestore is the live
+// source once the administrator has published the products.
+window.LUCIOLE_SEED_PRODUCTS = PRODUCTS;
+window.LUCIOLE_CATALOG_VERSION = CATALOG_VERSION;

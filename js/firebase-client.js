@@ -20,6 +20,7 @@ import {
   getDoc,
   getDocs,
   getFirestore,
+  onSnapshot,
   orderBy,
   query,
   serverTimestamp,
@@ -171,6 +172,9 @@ async function createContributionGroup(group, user) {
     priceSnapshot: group.priceSnapshot,
     inviteCode: group.inviteCode,
     memberCount: 1,
+    frequency: group.frequency || 'monthly',
+    startDate: group.startDate || null,
+    maxMembers: Math.max(2, Number(group.maxMembers) || 10),
     status: 'funding',
     createdAt: serverTimestamp()
   });
@@ -187,6 +191,7 @@ async function createContributionGroup(group, user) {
     beneficiary: group.beneficiary,
     privacy: group.privacy,
     memberCount: 1,
+    inviteCode: group.inviteCode,
     role: 'group_admin',
     status: 'accepted',
     createdAt: serverTimestamp()
@@ -218,6 +223,9 @@ async function createContributionGroup(group, user) {
     targetAmount: group.targetAmount || 0,
     beneficiary: group.beneficiary || '',
     privacy: group.privacy || 'private',
+    frequency: group.frequency || 'monthly',
+    startDate: group.startDate || null,
+    maxMembers: Math.max(2, Number(group.maxMembers) || 10),
     createdAt: serverTimestamp()
   });
   await batch.commit();
@@ -234,6 +242,7 @@ async function createContributionGroup(group, user) {
 
 async function getMemberGroups(userId) {
   const memberships = new Map();
+  const directMembershipIds = new Set();
   const remember = (groupId, data = {}) => {
     if (!groupId || (data.status && data.status !== 'accepted')) return;
     memberships.set(groupId, { ...(memberships.get(groupId) || {}), ...data, groupId });
@@ -242,7 +251,10 @@ async function getMemberGroups(userId) {
   // Primary path: each account owns a tiny private registry of its groups.
   // This avoids collection-group indexes and survives login/reload reliably.
   const directSnapshot = await getDocs(collection(db, 'users', userId, 'groupMemberships'));
-  directSnapshot.docs.forEach((item) => remember(item.id, item.data()));
+  directSnapshot.docs.forEach((item) => {
+    directMembershipIds.add(item.id);
+    remember(item.id, item.data());
+  });
 
   // Recovery path for groups created before the private registry existed.
   // The security rules only permit this query for the authenticated creator.
@@ -267,10 +279,12 @@ async function getMemberGroups(userId) {
       };
       remember(item.id, summary);
       // Repair both membership locations for an older creator account.
-      await Promise.all([
-        setDoc(doc(db, 'groups', item.id, 'members', userId), { ...summary, name: auth.currentUser?.displayName || auth.currentUser?.email || 'Membre Luciole', updatedAt: serverTimestamp() }, { merge: true }),
-        setDoc(doc(db, 'users', userId, 'groupMemberships', item.id), { ...summary, updatedAt: serverTimestamp() }, { merge: true })
-      ]).catch((error) => console.warn('Could not repair an owner membership:', error));
+      if (!directMembershipIds.has(item.id)) {
+        await Promise.all([
+          setDoc(doc(db, 'groups', item.id, 'members', userId), { ...summary, name: auth.currentUser?.displayName || auth.currentUser?.email || 'Membre Luciole', updatedAt: serverTimestamp() }, { merge: true }),
+          setDoc(doc(db, 'users', userId, 'groupMemberships', item.id), { ...summary, updatedAt: serverTimestamp() }, { merge: true })
+        ]).catch((error) => console.warn('Could not repair an owner membership:', error));
+      }
     }));
   } catch (error) {
     console.warn('Could not recover groups owned by this account:', error);
@@ -304,7 +318,10 @@ async function getMemberGroups(userId) {
     try {
       const groupSnapshot = await getDoc(groupRef);
       if (!groupSnapshot.exists()) return fallbackGroup;
-      const contributions = await getDocs(collection(groupRef, 'contributions'));
+      const [contributions, members] = await Promise.all([
+        getDocs(collection(groupRef, 'contributions')),
+        getDocs(collection(groupRef, 'members'))
+      ]);
       const loadedGroup = {
         id: groupSnapshot.id,
         ...groupSnapshot.data(),
@@ -312,26 +329,28 @@ async function getMemberGroups(userId) {
         // The group keeps this display value.  Do not load every member here:
         // a member must never need access to the complete membership list just
         // to open their own dashboard.
-        memberCount: Number(groupSnapshot.data().memberCount) || 1,
+        memberCount: members.size || Number(groupSnapshot.data().memberCount) || 1,
         messages: []
       };
       // Backfill the reliable private registry for legacy memberships.
-      setDoc(doc(db, 'users', userId, 'groupMemberships', groupId), {
-        userId,
-        groupId,
-        groupName: loadedGroup.name || fallbackGroup.name,
-        creatorId: loadedGroup.creatorId || fallbackGroup.creatorId,
-        productId: loadedGroup.productId || null,
-        productName: loadedGroup.productName || fallbackGroup.productName,
-        variant: loadedGroup.variant || fallbackGroup.variant,
-        targetAmount: Number(loadedGroup.targetAmount) || fallbackGroup.targetAmount,
-        beneficiary: loadedGroup.beneficiary || fallbackGroup.beneficiary,
-        privacy: loadedGroup.privacy || fallbackGroup.privacy,
-        memberCount: Number(loadedGroup.memberCount) || fallbackGroup.memberCount,
-        role: membershipData.role || 'member',
-        status: 'accepted',
-        updatedAt: serverTimestamp()
-      }, { merge: true }).catch((error) => console.warn('Could not backfill membership registry:', error));
+      if (!directMembershipIds.has(groupId)) {
+        setDoc(doc(db, 'users', userId, 'groupMemberships', groupId), {
+          userId,
+          groupId,
+          groupName: loadedGroup.name || fallbackGroup.name,
+          creatorId: loadedGroup.creatorId || fallbackGroup.creatorId,
+          productId: loadedGroup.productId || null,
+          productName: loadedGroup.productName || fallbackGroup.productName,
+          variant: loadedGroup.variant || fallbackGroup.variant,
+          targetAmount: Number(loadedGroup.targetAmount) || fallbackGroup.targetAmount,
+          beneficiary: loadedGroup.beneficiary || fallbackGroup.beneficiary,
+          privacy: loadedGroup.privacy || fallbackGroup.privacy,
+          memberCount: Number(loadedGroup.memberCount) || fallbackGroup.memberCount,
+          role: membershipData.role || 'member',
+          status: 'accepted',
+          updatedAt: serverTimestamp()
+        }, { merge: true }).catch((error) => console.warn('Could not backfill membership registry:', error));
+      }
       return loadedGroup;
     } catch (error) {
       console.warn('Using membership fallback for unreadable group:', error);
@@ -390,6 +409,7 @@ async function joinContributionGroup(inviteCode, user) {
     userId: user.id,
     name: user.name,
     ...groupSummary,
+    inviteCode: normalizedCode,
     role: 'member',
     status: 'accepted',
     joinedAt: serverTimestamp()
@@ -434,6 +454,169 @@ async function joinContributionGroup(inviteCode, user) {
   return { ...groupSummary, alreadyMember: false };
 }
 
+function subscribeMemberGroups(userId, onGroups, onError = console.error) {
+  let active = true;
+  let requestVersion = 0;
+  const memberSubscriptions = new Map();
+  const contributionSubscriptions = new Map();
+  const refresh = async () => {
+    const version = ++requestVersion;
+    try {
+      const groups = await getMemberGroups(userId);
+      if (!active || version !== requestVersion) return;
+      const activeIds = new Set(groups.map((group) => group.id));
+      memberSubscriptions.forEach((unsubscribe, groupId) => {
+        if (!activeIds.has(groupId)) {
+          unsubscribe();
+          memberSubscriptions.delete(groupId);
+        }
+      });
+      contributionSubscriptions.forEach((unsubscribe, groupId) => {
+        if (!activeIds.has(groupId)) {
+          unsubscribe();
+          contributionSubscriptions.delete(groupId);
+        }
+      });
+      groups.forEach((group) => {
+        if (!memberSubscriptions.has(group.id)) {
+          const stop = onSnapshot(collection(db, 'groups', group.id, 'members'), refresh, onError);
+          memberSubscriptions.set(group.id, stop);
+        }
+        if (!contributionSubscriptions.has(group.id)) {
+          const stop = onSnapshot(collection(db, 'groups', group.id, 'contributions'), refresh, onError);
+          contributionSubscriptions.set(group.id, stop);
+        }
+      });
+      onGroups(groups);
+    } catch (error) {
+      if (active) onError(error);
+    }
+  };
+  const unsubscribe = onSnapshot(collection(db, 'users', userId, 'groupMemberships'), refresh, onError);
+  return () => {
+    active = false;
+    unsubscribe();
+    memberSubscriptions.forEach((stop) => stop());
+    memberSubscriptions.clear();
+    contributionSubscriptions.forEach((stop) => stop());
+    contributionSubscriptions.clear();
+  };
+}
+
+function subscribePublicGroups(onGroups, onError = console.error) {
+  const publicQuery = query(
+    collection(db, 'groups'),
+    where('privacy', 'in', ['public', 'discoverable']),
+    where('status', '==', 'funding')
+  );
+  const memberSubscriptions = new Map();
+  let groups = [];
+  const emit = () => onGroups(groups.map((group) => ({ ...group })));
+  const stopGroups = onSnapshot(publicQuery, (snapshot) => {
+    groups = snapshot.docs.map((item) => ({
+      id: item.id,
+      ...item.data(),
+      contributions: [],
+      messages: []
+    }));
+    groups.sort((a, b) => {
+      const aDate = a.createdAt?.toMillis?.() || 0;
+      const bDate = b.createdAt?.toMillis?.() || 0;
+      return bDate - aDate;
+    });
+    const activeIds = new Set(groups.map((group) => group.id));
+    memberSubscriptions.forEach((unsubscribe, groupId) => {
+      if (!activeIds.has(groupId)) {
+        unsubscribe();
+        memberSubscriptions.delete(groupId);
+      }
+    });
+    groups.forEach((group) => {
+      if (memberSubscriptions.has(group.id)) return;
+      const unsubscribe = onSnapshot(collection(db, 'groups', group.id, 'members'), (members) => {
+        const found = groups.find((item) => item.id === group.id);
+        if (found) found.memberCount = members.size;
+        emit();
+      }, onError);
+      memberSubscriptions.set(group.id, unsubscribe);
+    });
+    emit();
+  }, onError);
+  return () => {
+    stopGroups();
+    memberSubscriptions.forEach((unsubscribe) => unsubscribe());
+    memberSubscriptions.clear();
+  };
+}
+
+async function joinPublicGroup(groupId, user) {
+  const groupRef = doc(db, 'groups', groupId);
+  const groupSnapshot = await getDoc(groupRef);
+  if (!groupSnapshot.exists()) throw new Error('Ce groupe public n\'existe plus.');
+  const group = groupSnapshot.data();
+  if (!['public', 'discoverable'].includes(group.privacy) || group.status !== 'funding') {
+    throw new Error('Ce groupe n\'accepte plus de nouvelles membres.');
+  }
+  const memberRef = doc(groupRef, 'members', user.id);
+  const userMembershipRef = doc(db, 'users', user.id, 'groupMemberships', groupId);
+  const existingMember = await getDoc(memberRef);
+  if (existingMember.exists()) return { id: groupId, ...group, alreadyMember: true };
+  const summary = {
+    userId: user.id,
+    groupId,
+    groupName: group.name,
+    creatorId: group.creatorId,
+    productId: group.productId || null,
+    productName: group.productName || 'Greffe sélectionnée',
+    variant: group.variant || '',
+    targetAmount: Number(group.targetAmount) || 0,
+    beneficiary: group.beneficiary || '',
+    privacy: group.privacy,
+    memberCount: Number(group.memberCount) || 1,
+    frequency: group.frequency || 'monthly',
+    startDate: group.startDate || null,
+    maxMembers: Number(group.maxMembers) || 10,
+    role: 'member',
+    status: 'accepted'
+  };
+  const batch = writeBatch(db);
+  batch.set(memberRef, { ...summary, name: user.name, joinedAt: serverTimestamp() });
+  batch.set(userMembershipRef, { ...summary, joinedAt: serverTimestamp() });
+  await batch.commit();
+  addDoc(collection(groupRef, 'messages'), {
+    system: true,
+    content: `${user.name} a rejoint le groupe public.`,
+    createdAt: serverTimestamp()
+  }).catch(console.warn);
+  return { id: groupId, ...group, alreadyMember: false };
+}
+
+async function getGroupDetails(groupId) {
+  const groupRef = doc(db, 'groups', groupId);
+  const [groupSnapshot, membersSnapshot, contributionsSnapshot, messagesSnapshot] = await Promise.all([
+    getDoc(groupRef),
+    getDocs(collection(groupRef, 'members')),
+    getDocs(collection(groupRef, 'contributions')),
+    getDocs(query(collection(groupRef, 'messages'), orderBy('createdAt', 'asc')))
+  ]);
+  if (!groupSnapshot.exists()) throw new Error('Groupe introuvable.');
+  return {
+    id: groupSnapshot.id,
+    ...groupSnapshot.data(),
+    members: membersSnapshot.docs.map((item) => ({ id: item.id, ...item.data() })),
+    contributions: contributionsSnapshot.docs.map((item) => ({ id: item.id, ...item.data() })),
+    messages: messagesSnapshot.docs.map((item) => ({ id: item.id, ...item.data() }))
+  };
+}
+
+function subscribeGroupMessages(groupId, onMessages, onError = console.error) {
+  return onSnapshot(
+    query(collection(db, 'groups', groupId, 'messages'), orderBy('createdAt', 'asc')),
+    (snapshot) => onMessages(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }))),
+    onError
+  );
+}
+
 async function declareContribution(groupId, contribution) {
   await addDoc(collection(db, 'groups', groupId, 'contributions'), {
     ...contribution,
@@ -455,26 +638,34 @@ async function sendGroupMessage(groupId, message) {
   });
 }
 
-
-/* ===== Catalog price overrides (Firestore) ===== */
-const CATALOG_PRICES_REF = doc(db, 'catalog_prices', 'overrides');
-
-async function fetchPriceOverrides() {
-  try {
-    const snap = await getDoc(CATALOG_PRICES_REF);
-    return snap.exists() ? (snap.data().prices || {}) : {};
-  } catch (e) {
-    console.warn('[Luciole] Prix hors-ligne, utilisation du cache local :', e.message);
-    return {};
-  }
+/* ===== Live catalogue (Firestore is the runtime source of truth) ===== */
+function normalizeProduct(snapshot) {
+  const raw = snapshot.data() || {};
+  const numericId = Number(raw.id ?? snapshot.id);
+  return {
+    ...raw,
+    id: Number.isFinite(numericId) ? numericId : snapshot.id,
+    referencePrice: Math.max(0, Number(raw.referencePrice) || 0),
+    promoPrice: raw.promoPrice == null ? null : Math.max(0, Number(raw.promoPrice) || 0),
+    lengths: Array.isArray(raw.lengths)
+      ? raw.lengths.map((variant) => ({
+          ...variant,
+          length: String(variant.length || ''),
+          price: Math.max(0, Number(variant.price) || 0)
+        })).filter((variant) => variant.length)
+      : [],
+    images: Array.isArray(raw.images) ? raw.images.filter(Boolean) : []
+  };
 }
 
-async function savePriceOverride(productId, price) {
-  await setDoc(CATALOG_PRICES_REF, { prices: { [String(productId)]: Number(price) } }, { merge: true });
-}
-
-async function deleteAllPriceOverrides(prices) {
-  await setDoc(CATALOG_PRICES_REF, { prices }, { merge: false });
+function subscribePublishedProducts(onProducts, onError = console.error) {
+  const productsQuery = query(collection(db, 'products'), where('published', '==', true));
+  return onSnapshot(productsQuery, (snapshot) => {
+    const products = snapshot.docs
+      .map(normalizeProduct)
+      .sort((a, b) => Number(a.id) - Number(b.id));
+    onProducts(products);
+  }, onError);
 }
 
 window.FirebaseClient = {
@@ -483,14 +674,17 @@ window.FirebaseClient = {
   db,
   signInWithGoogle,
   signInWithEmail,
-  fetchPriceOverrides,
-  savePriceOverride,
-  deleteAllPriceOverrides,
+  subscribePublishedProducts,
   resetPassword,
   signOut,
   createContributionGroup,
   joinContributionGroup,
+  joinPublicGroup,
   getMemberGroups,
+  subscribeMemberGroups,
+  subscribePublicGroups,
+  getGroupDetails,
+  subscribeGroupMessages,
   declareContribution,
   getGroupMessages,
   sendGroupMessage

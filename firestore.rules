@@ -6,14 +6,19 @@ service cloud.firestore {
       return signedIn() && get(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)).data.status == 'accepted';
     }
     function isGeneralAdmin() {
-      return signedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['general_admin', 'payment_manager'];
+      return signedIn() && (
+        request.auth.token.email == 'kerenetchapga@gmail.com'
+        || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['general_admin', 'payment_manager']
+      );
     }
 
     match /groups/{groupId} {
-      allow get: if isAcceptedMember(groupId) || (signedIn() && resource.data.privacy == 'discoverable');
+      allow get: if isAcceptedMember(groupId)
+        || (resource.data.privacy in ['public', 'discoverable'] && resource.data.status == 'funding');
       // A creator can recover their own groups after reconnecting. The client
       // query is constrained with where('creatorId', '==', request.auth.uid).
-      allow list: if signedIn() && resource.data.creatorId == request.auth.uid;
+      allow list: if (resource.data.privacy in ['public', 'discoverable'] && resource.data.status == 'funding')
+        || (signedIn() && resource.data.creatorId == request.auth.uid);
       allow create: if signedIn() && request.resource.data.creatorId == request.auth.uid;
       allow update, delete: if isGeneralAdmin() || (isAcceptedMember(groupId) && resource.data.creatorId == request.auth.uid);
 
@@ -22,9 +27,23 @@ service cloud.firestore {
         // second condition is deliberately based on document data: it lets
         // Firestore safely run the collection-group query used to find *my*
         // memberships, without exposing anybody else's memberships.
-        allow get: if isAcceptedMember(groupId) || (signedIn() && userId == request.auth.uid);
-        allow list: if isAcceptedMember(groupId) || (signedIn() && resource.data.userId == request.auth.uid);
-        allow create: if signedIn() && userId == request.auth.uid;
+        allow get: if isAcceptedMember(groupId)
+          || get(/databases/$(database)/documents/groups/$(groupId)).data.privacy in ['public', 'discoverable']
+          || (signedIn() && userId == request.auth.uid);
+        allow list: if isAcceptedMember(groupId)
+          || get(/databases/$(database)/documents/groups/$(groupId)).data.privacy in ['public', 'discoverable']
+          || (signedIn() && resource.data.userId == request.auth.uid);
+        allow create: if signedIn()
+          && userId == request.auth.uid
+          && request.resource.data.status == 'accepted'
+          && (
+            getAfter(/databases/$(database)/documents/groups/$(groupId)).data.creatorId == request.auth.uid
+            || getAfter(/databases/$(database)/documents/groups/$(groupId)).data.privacy in ['public', 'discoverable']
+            || (
+              request.resource.data.inviteCode is string
+              && getAfter(/databases/$(database)/documents/groupInvites/$(request.resource.data.inviteCode)).data.groupId == groupId
+            )
+          );
         allow update, delete: if isGeneralAdmin() || (isAcceptedMember(groupId) && get(/databases/$(database)/documents/groups/$(groupId)).data.creatorId == request.auth.uid);
       }
       match /contributions/{contributionId} {
@@ -55,7 +74,8 @@ service cloud.firestore {
         allow create, update: if signedIn()
           && userId == request.auth.uid
           && request.resource.data.userId == request.auth.uid
-          && request.resource.data.groupId == groupId;
+          && request.resource.data.groupId == groupId
+          && getAfter(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)).data.status == 'accepted';
       }
     }
     match /groupInvites/{inviteCode} {
@@ -68,10 +88,15 @@ service cloud.firestore {
         && request.resource.data.inviteCode == inviteCode;
       allow update, delete: if isGeneralAdmin() || (signedIn() && resource.data.creatorId == request.auth.uid);
     }
-    // Prix du catalogue — lecture publique, écriture protégée par le mot de passe admin côté UI
+    match /products/{productId} {
+      allow get: if resource.data.published == true || isGeneralAdmin();
+      allow list: if resource.data.published == true || isGeneralAdmin();
+      allow create, update, delete: if isGeneralAdmin();
+    }
+    // Ancien document conservé uniquement pour la migration des prix.
     match /catalog_prices/{doc} {
       allow read: if true;
-      allow write: if true;
+      allow write: if isGeneralAdmin();
     }
     match /{document=**} { allow read, write: if false; }
   }

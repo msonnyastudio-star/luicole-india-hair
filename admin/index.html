@@ -253,9 +253,8 @@
       <div class="adm-login-icon">💎</div>
       <h1>Luciole India Hair</h1>
       <p class="subtitle">Espace d'administration</p>
-      <input type="password" id="adminPassword" placeholder="Mot de passe" onkeypress="if(event.key==='Enter')login()">
-      <button class="adm-btn-login" onclick="login()"><i class="fas fa-unlock-alt"></i> &nbsp;Accéder au tableau de bord</button>
-      <p class="adm-login-hint">Mot de passe par défaut&nbsp;: luciole2024</p>
+      <button class="adm-btn-login" id="adminGoogleLogin" onclick="login()"><i class="fab fa-google"></i> &nbsp;Se connecter avec Google</button>
+      <p class="adm-login-hint" id="adminLoginStatus">Accès réservé au compte administrateur autorisé dans Firebase.</p>
       <a href="../index.html" class="adm-back-link">← Retour au site</a>
     </div>
   </div>
@@ -406,6 +405,19 @@
                 <option>Rupture de stock</option>
               </select>
             </div>
+            <div class="adm-form-group">
+              <label>Stock disponible</label>
+              <input type="number" id="pStock" min="0" step="1" value="1">
+            </div>
+            <div class="adm-form-group">
+              <label>Prix promotionnel (FCFA)</label>
+              <input type="number" id="pPromoPrice" min="0" step="100" placeholder="0 = aucune promotion">
+            </div>
+            <div class="adm-form-group">
+              <label style="display:flex;align-items:center;gap:10px;text-transform:none;">
+                <input type="checkbox" id="pPublished" checked style="width:auto;"> Produit publié sur le site
+              </label>
+            </div>
           </div>
           <div class="adm-form-actions">
             <button class="adm-btn-primary" onclick="saveProduct()"><i class="fas fa-save"></i> &nbsp;Enregistrer le produit</button>
@@ -440,8 +452,8 @@
   </div>
 
   <script src="../js/products.js"></script>
-  <script>
-    const ADMIN_PASS = 'luciole2024';
+  <script type="text/plain" id="legacyAdminCode">
+    const ADMIN_PASS = '';
 
     function copyCatalog(products) {
       return products.map(product => ({
@@ -720,5 +732,6 @@
       document.getElementById('pReferencePrice').value = '';
     }
   </script>
+  <script type="module" src="../js/admin.js"></script>
 </body>
 </html>
