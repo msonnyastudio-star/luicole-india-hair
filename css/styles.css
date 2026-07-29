@@ -962,6 +962,15 @@ section {
   flex: 1;
 }
 
+.modal-actions .btn-group-purchase {
+  flex-basis: 100%;
+  background: linear-gradient(135deg, #277fca, #6c63c9);
+  color: #fff;
+  border-color: transparent;
+}
+
+.modal-actions .btn-group-purchase:hover { filter: brightness(1.06); }
+
 /* Cart Sidebar */
 .cart-sidebar {
   position: fixed;

@@ -13,8 +13,8 @@ const GroupUI = (() => {
     },
     mtn: {
       operator: 'MTN Mobile Money',
-      number: '+237654884788',
-      displayNumber: '+237 654 884 788',
+      number: '+237654884748',
+      displayNumber: '+237 654 884 748',
       accountName: 'Tchapga Gaetan'
     }
   });
@@ -817,6 +817,16 @@ const GroupUI = (() => {
   }
 
   function init() {
+    try {
+      const deferredPurchase = sessionStorage.getItem('luciole_pending_group_purchase');
+      if (deferredPurchase) {
+        pendingProduct = JSON.parse(deferredPurchase);
+        sessionStorage.removeItem('luciole_pending_group_purchase');
+        window.setTimeout(() => showCreateGroup(pendingProduct), 0);
+      }
+    } catch (_) {
+      sessionStorage.removeItem('luciole_pending_group_purchase');
+    }
     bindEvents();
     window.addEventListener('firebase-auth-state', (event) => applyFirebaseUser(event.detail));
     window.addEventListener('firebase-auth-error', (event) => firebaseError(event.detail));

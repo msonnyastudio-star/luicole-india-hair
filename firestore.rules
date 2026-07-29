@@ -69,7 +69,7 @@ service cloud.firestore {
             )
             || (
               request.resource.data.paymentMethod == 'mtn'
-              && request.resource.data.recipientNumber == '+237654884788'
+              && request.resource.data.recipientNumber == '+237654884748'
               && request.resource.data.recipientName == 'Tchapga Gaetan'
             )
           )

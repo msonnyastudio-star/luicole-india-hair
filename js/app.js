@@ -497,6 +497,9 @@ function openProductModal(id) {
         <button class="btn btn-whatsapp" onclick="orderOnWhatsApp()">
           <i class="fab fa-whatsapp"></i> ${tr('buy-now', 'Acheter maintenant')}
         </button>
+        <button class="btn btn-group-purchase" onclick="startGroupPurchase()">
+          <i class="fas fa-people-group"></i> ${tr('buy-group', 'Acheter avec un groupe')}
+        </button>
       </div>
     </div>
   `;
@@ -538,6 +541,33 @@ function updateModalPrice() {
   const unitPrice = getEffectivePrice(currentProduct, selectedLength);
   const total = unitPrice * selectedQty;
   document.getElementById('modalPrice').textContent = formatPrice(total) + (selectedQty > 1 ? ` (${selectedQty} × ${formatPrice(unitPrice)})` : '');
+}
+
+// Starts a contribution group directly from the product detail, preserving the
+// selected length and quantity so the group target matches the chosen product.
+function startGroupPurchase() {
+  if (!currentProduct || !selectedLength) return;
+  const unitPrice = getEffectivePrice(currentProduct, selectedLength);
+  if (!Number(unitPrice)) {
+    showToast(tr('group-price-needed', 'Renseignez le prix de cette taille dans l’administration avant de créer un groupe.'));
+    return;
+  }
+  const quantity = Math.max(1, Number(selectedQty) || 1);
+  const purchase = {
+    productId: currentProduct.id,
+    productName: currentProduct.name,
+    variant: `${selectedLength.length}${quantity > 1 ? ` × ${quantity}` : ''}`,
+    targetAmount: unitPrice * quantity
+  };
+  closeModal();
+  if (window.GroupUI?.openCreateForProduct) {
+    window.GroupUI.openCreateForProduct(purchase);
+    return;
+  }
+  // The fallback keeps the selected model when the group interface is loaded
+  // on its dedicated page instead of the catalogue page.
+  sessionStorage.setItem('luciole_pending_group_purchase', JSON.stringify(purchase));
+  window.location.assign('groupes.html');
 }
 
 // Cart
@@ -874,6 +904,7 @@ window.filterByCategory = filterByCategory;
 window.changeMainImg = changeMainImg;
 window.selectLength = selectLength;
 window.changeQty = changeQty;
+window.startGroupPurchase = startGroupPurchase;
 window.addToCart = addToCart;
 window.updateCartQty = updateCartQty;
 window.removeFromCart = removeFromCart;

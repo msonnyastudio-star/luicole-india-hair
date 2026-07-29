@@ -48,7 +48,7 @@ test('les cotisations utilisent les comptes officiels et une preuve privée supp
   const rules = read('firestore.rules');
   assert.match(groups, /\+237657946480/);
   assert.match(groups, /Assom Nang Galine/);
-  assert.match(groups, /\+237654884788/);
+  assert.match(groups, /\+237654884748/);
   assert.match(groups, /Tchapga Gaetan/);
   assert.match(groups, /name="proof" type="file"/);
   assert.match(groups, /compressPaymentProof/);
@@ -59,4 +59,6 @@ test('les cotisations utilisent les comptes officiels et une preuve privée supp
   assert.match(rules, /match \/paymentProofs\/\{proofId\}/);
   assert.match(rules, /data\.status == 'funding'/);
   assert.match(rules, /allow read, update, delete: if isGeneralAdmin\(\)/);
+  assert.match(read('js/app.js'), /startGroupPurchase/);
+  assert.match(read('js/app.js'), /openCreateForProduct\(purchase\)/);
 });
