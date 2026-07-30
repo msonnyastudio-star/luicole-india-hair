@@ -970,6 +970,10 @@ const translations = {
     "cat-sub": "Explorez notre gamme complète de cheveux premium pour tous les styles et toutes les envies.",
     "catalog-title": "Notre catalogue de cheveux",
     "catalog-sub": "Greffes, mèches, closures, frontals et perruques premium à choisir selon votre style.",
+    "catalog-group-kicker": "Un coup de cœur se partage",
+    "catalog-group-title": "Votre modèle préféré peut se préparer en groupe.",
+    "catalog-group-copy": "Choisissez votre greffe, invitez vos proches et avancez à votre rythme avec des cotisations simples et privées.",
+    "catalog-group-cta": "Créer mon groupe",
     "hero-lace-title": "Greffes lace HD",
     "hero-lace-sub": "Finition naturelle pour mariage, shooting, soirée.",
     "hero-nolace-title": "Greffes sans lace",
@@ -1115,6 +1119,10 @@ const translations = {
     "cat-sub": "Explore our complete range of premium hair for every style and preference.",
     "catalog-title": "Our hair catalog",
     "catalog-sub": "Premium hair bundles, weaves, closures, frontals and wigs to match your style.",
+    "catalog-group-kicker": "A favourite look is even better shared",
+    "catalog-group-title": "Your favourite style can be planned together.",
+    "catalog-group-copy": "Choose your wig, invite your loved ones and move at your own pace with simple, private contributions.",
+    "catalog-group-cta": "Create my group",
     "hero-lace-title": "HD lace bundles",
     "hero-lace-sub": "Natural finish for weddings, photoshoots and parties.",
     "hero-nolace-title": "Non-lace bundles",
@@ -1391,6 +1399,55 @@ function initScrollReveal() {
 document.addEventListener('DOMContentLoaded', initScrollReveal);
 
 /* ===== Video promotion carousel ===== */
+const NEW_VIDEO_LOOKS = [
+  { file: '01', poster: 'nouveaute-sculpted-bob.jpg', alt: 'Bob sculpté glamour noir en vidéo' },
+  { file: '02', poster: 'nouveaute-silky-chocolate.jpg', alt: 'Lace lisse chocolat extra longue en vidéo' },
+  { file: '03', poster: 'nouveaute-classic-bob.jpg', alt: 'Bob lisse classique noir en vidéo' },
+  { file: '04', poster: 'nouveaute-glam-wave.jpg', alt: 'Lace glamour ondulée noire en vidéo' },
+  { file: '05', poster: 'nouveaute-royal-curl.jpg', alt: 'Lace bouclée royale noire en vidéo' },
+  { file: '06', poster: 'nouveaute-burgundy-wave.jpg', alt: 'Lace body wave bordeaux en vidéo' },
+  { file: '07', poster: 'nouveaute-sculpted-bob.jpg', alt: 'Nouveau look Luciole en vidéo' },
+  { file: '08', poster: 'nouveaute-silky-chocolate.jpg', alt: 'Nouveau look Luciole en vidéo' },
+  { file: '09', poster: 'nouveaute-classic-bob.jpg', alt: 'Nouveau look Luciole en vidéo' },
+  { file: '10', poster: 'nouveaute-glam-wave.jpg', alt: 'Nouveau look Luciole en vidéo' },
+  { file: '11', poster: 'nouveaute-royal-curl.jpg', alt: 'Nouveau look Luciole en vidéo' }
+];
+
+function addNewVideoLooks() {
+  const track = document.querySelector('#videoCarouselViewport .video-carousel-track');
+  const dots = document.querySelector('.video-carousel-dots');
+  if (!track || !dots || track.dataset.newLooksReady) return;
+  track.dataset.newLooksReady = 'true';
+  const isEnglish = document.documentElement.lang === 'en';
+  const videoLabel = isEnglish ? 'Watch the look' : 'Look en vidéo';
+  const unsupportedMessage = isEnglish ? 'Your browser cannot play this video.' : 'Votre navigateur ne peut pas lire cette vidéo.';
+
+  NEW_VIDEO_LOOKS.forEach((look, offset) => {
+    const number = String(offset + 3).padStart(2, '0');
+    track.insertAdjacentHTML('beforeend', `
+      <article class="video-promo-card">
+        <div class="video-frame">
+          <video controls muted playsinline preload="none" poster="images/catalogue/${look.poster}" aria-label="${look.alt}">
+            <source src="media/luciole-look-${look.file}.mp4" type="video/mp4">
+            <span data-i18n="video-unsupported">${unsupportedMessage}</span>
+          </video>
+          <span class="video-label"><i class="fas fa-play"></i> <span data-i18n="video-label">${videoLabel}</span></span>
+        </div>
+        <div class="video-promo-copy video-story-copy">
+          <div class="video-story-topline"><span class="video-story-live"><i class="fas fa-circle"></i> THE GLOW EDIT</span><span>${number} / 13</span></div>
+          <div class="video-story-rotator" data-video-story aria-live="polite">
+            <p class="video-story-kicker">BEAUTÉ • CONFIANCE • SORORITÉ</p>
+            <h3>Ta beauté n’a pas besoin d’autorisation.</h3>
+            <p class="video-story-text">Fais de ta couronne une signature. Tu es déjà la lumière du plan.</p>
+          </div>
+          <div class="video-story-equalizer" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+      </article>`);
+    dots.insertAdjacentHTML('beforeend', `<button type="button" data-video-dot="${offset + 2}" aria-label="Vidéo ${offset + 3}"></button>`);
+  });
+}
+document.addEventListener('DOMContentLoaded', addNewVideoLooks);
+
 const VIDEO_STORIES = {
   fr: [
     { kicker: 'BEAUTÉ • CONFIANCE • SORORITÉ', title: 'Ta beauté n’a pas besoin d’autorisation.', text: 'Fais de ta couronne une signature. Tu es déjà la lumière du plan.' },
@@ -1466,7 +1523,6 @@ function initVideoCarousel() {
   function pauseHiddenVideos() {
     cards.forEach((card, index) => {
       if (index !== current) card.querySelector('video')?.pause();
-      else card.querySelector('video')?.play?.().catch(() => {});
     });
   }
 

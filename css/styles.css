@@ -556,6 +556,52 @@ section {
   background: var(--gray-light);
 }
 
+.catalog-group-invite {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  margin: 0 auto 24px;
+  padding: 20px 22px;
+  overflow: hidden;
+  border: 1px solid rgba(184, 119, 178, 0.24);
+  border-radius: 20px;
+  background: linear-gradient(110deg, #fff 0%, #fff6fb 55%, #f3efff 100%);
+  box-shadow: 0 12px 32px rgba(88, 35, 88, 0.08);
+}
+
+.catalog-group-invite::after {
+  content: '';
+  position: absolute;
+  width: 180px;
+  height: 180px;
+  right: -78px;
+  bottom: -104px;
+  border: 25px solid rgba(209, 167, 225, 0.2);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.catalog-group-icon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 17px;
+  color: #fff;
+  background: linear-gradient(135deg, #b26c9e, #6d60b5);
+  box-shadow: 0 8px 18px rgba(113, 73, 146, 0.25);
+}
+
+.catalog-group-copy { min-width: 0; }
+.catalog-group-kicker { margin: 0 0 4px; color: #a14e82; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; }
+.catalog-group-copy h3 { margin: 0 0 5px; color: #35213d; font-family: 'Playfair Display', serif; font-size: clamp(1.15rem, 2vw, 1.45rem); line-height: 1.2; }
+.catalog-group-copy > p:last-child { max-width: 700px; margin: 0; color: #6b5a6d; font-size: 0.9rem; line-height: 1.55; }
+.catalog-group-cta { position: relative; z-index: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 43px; padding: 10px 15px; border: 0; border-radius: 999px; color: #fff; background: #6d60b5; box-shadow: 0 7px 17px rgba(91, 75, 155, 0.22); font: inherit; font-size: 0.84rem; font-weight: 700; white-space: nowrap; transition: var(--transition); }
+.catalog-group-cta:hover { background: #594da0; transform: translateY(-2px); }
+
 .products-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -1612,6 +1658,9 @@ section {
     flex-direction: column;
     align-items: stretch;
   }
+
+  .catalog-group-invite { grid-template-columns: auto minmax(0, 1fr); gap: 13px; padding: 17px; }
+  .catalog-group-cta { grid-column: 1 / -1; width: 100%; margin-top: 2px; }
 
   .search-box {
     max-width: 100%;
