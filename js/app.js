@@ -9,7 +9,8 @@ function copyCatalog(products) {
   return products.map(product => ({
     ...product,
     lengths: product.lengths.map(length => ({ ...length })),
-    images: [...product.images]
+    images: [...product.images],
+    videos: Array.isArray(product.videos) ? [...product.videos] : []
   }));
 }
 
@@ -256,7 +257,8 @@ const PRODUCT_NAMES_EN = {
   21: 'Natural Kinky Curly Lace', 22: 'Long Burgundy Straight Lace', 23: 'Black Square Headband Bob', 24: 'Curly Bob with Bangs',
   25: 'Extra-Long Honey Straight Lace', 26: 'Soft Short Black Bob', 27: 'Afro Kinky Curly Lace', 28: 'Chocolate Glamour Curl Bob',
   29: 'Black Body Wave Lace', 30: 'Chocolate Afro Volume Lace', 31: 'Natural Chocolate Straight Lace', 32: 'Straight Lace with Bangs',
-  33: 'Long Black Kinky Curly Lace', 34: 'Silver Grey Straight Bob', 35: 'Colourful Curly Lace Collection', 36: 'Black Kinky Curly Lace', 37: 'Black Glamour Body Wave Lace'
+  33: 'Long Black Kinky Curly Lace', 34: 'Silver Grey Straight Bob', 35: 'Colourful Curly Lace Collection', 36: 'Black Kinky Curly Lace', 37: 'Black Glamour Body Wave Lace',
+  38: 'Sculpted Glamour Black Bob', 39: 'Extra-Long Chocolate Straight Lace', 40: 'Classic Black Straight Bob', 41: 'Black Glam Wave Lace', 42: 'Black Royal Curls Lace', 43: 'Burgundy Body Wave Lace'
 };
 const CATEGORY_EN = { lace: ['Lace wigs', 'Parting styles with lace finishing'], lisse: ['Straight hair', 'Sleek fall and clean finish'], ondulé: ['Wavy hair', 'Body wave and soft waves'], bouclé: ['Curly hair', 'Defined curls and volume'], court: ['Short styles', 'Bobs, bangs and short styles'], long: ['Long lengths', '20-inch styles and longer'] };
 const TEXTURE_EN = { lisse: 'Straight', ondulé: 'Wavy', bouclé: 'Curly' };
@@ -348,6 +350,7 @@ function renderProducts(products) {
     const p = localizeProduct(rawProduct);
     const minPrice = getProductMinPrice(p);
     const displayPrice = p.promo && p.promoPrice ? p.promoPrice : minPrice;
+    const videoCount = Array.isArray(p.videos) ? p.videos.length : 0;
     const badgeHtml = p.badge ? `<span class="product-badge badge-${p.badge}">${
       p.badge === 'nouveau' ? tr('badge-new', 'Nouveau') :
       p.badge === 'promo' ? tr('badge-promo', 'Promotion') :
@@ -359,6 +362,7 @@ function renderProducts(products) {
         ${badgeHtml}
         <div class="product-image">
           <img src="${p.images[0]}" alt="${p.name}" loading="lazy" decoding="async" width="400" height="400">
+          ${videoCount ? `<span class="product-video-badge"><i class="fas fa-play"></i> ${tr('video-product-badge', 'Voir en vidéo')} <b>${videoCount}</b></span>` : ''}
           <div class="product-actions-overlay">
             <button class="btn btn-primary btn-sm" onclick="openProductModal(${p.id})">${tr('view', 'Voir')}</button>
             <button class="btn btn-whatsapp btn-sm" onclick="quickWhatsApp(${p.id})"><i class="fab fa-whatsapp"></i></button>
@@ -441,6 +445,7 @@ function openProductModal(id) {
   const body = document.getElementById('modalBody');
 
   const price = getEffectivePrice(currentProduct, selectedLength);
+  const productVideos = Array.isArray(currentProduct.videos) ? currentProduct.videos.filter(Boolean) : [];
 
   body.innerHTML = `
     <div class="modal-gallery">
@@ -450,6 +455,17 @@ function openProductModal(id) {
           <img src="${img}" alt="${tr('view', 'Vue')} ${i+1}" class="${i===0?'active':''}" onclick="changeMainImg('${img}', this)">
         `).join('')}
       </div>
+      ${productVideos.length ? `
+        <section class="modal-video-gallery">
+          <p><i class="fas fa-play-circle"></i> ${tr('video-product-title', 'Le rendu de ce modèle en vidéo')}</p>
+          <div class="modal-video-list">
+            ${productVideos.map((video, index) => `
+              <video controls muted playsinline preload="none" poster="${currentProduct.images[0]}" aria-label="${currentProduct.name} - vidéo ${index + 1}">
+                <source src="${video}" type="video/mp4">
+              </video>
+            `).join('')}
+          </div>
+        </section>` : ''}
     </div>
     <div class="modal-details">
       <h2>${currentProduct.name}</h2>
@@ -946,6 +962,9 @@ const translations = {
     "video-catalog": "Voir le catalogue",
     "video-unsupported": "Votre navigateur ne peut pas lire cette vidéo.",
     "video-label": "Look en vidéo",
+    "video-product-badge": "Voir en vidéo",
+    "video-product-title": "Le rendu de ce modèle en vidéo",
+    "video-product-link": "Voir la fiche du look",
     "video-card1-title": "Le mouvement qui fait la différence",
     "video-card1-text": "Appuyez sur lecture pour voir le rendu réel du modèle.",
     "video-card2-title": "Des textures à voir sous tous les angles",
@@ -1095,6 +1114,9 @@ const translations = {
     "video-catalog": "View the catalogue",
     "video-unsupported": "Your browser cannot play this video.",
     "video-label": "Watch the look",
+    "video-product-badge": "Watch on video",
+    "video-product-title": "See this look on video",
+    "video-product-link": "View look details",
     "video-card1-title": "Movement that makes all the difference",
     "video-card1-text": "Press play to see the style in real life.",
     "video-card2-title": "Textures to see from every angle",
@@ -1400,17 +1422,17 @@ document.addEventListener('DOMContentLoaded', initScrollReveal);
 
 /* ===== Video promotion carousel ===== */
 const NEW_VIDEO_LOOKS = [
-  { file: '01', poster: 'nouveaute-sculpted-bob.jpg', alt: 'Bob sculpté glamour noir en vidéo' },
-  { file: '02', poster: 'nouveaute-silky-chocolate.jpg', alt: 'Lace lisse chocolat extra longue en vidéo' },
-  { file: '03', poster: 'nouveaute-classic-bob.jpg', alt: 'Bob lisse classique noir en vidéo' },
-  { file: '04', poster: 'nouveaute-glam-wave.jpg', alt: 'Lace glamour ondulée noire en vidéo' },
-  { file: '05', poster: 'nouveaute-royal-curl.jpg', alt: 'Lace bouclée royale noire en vidéo' },
-  { file: '06', poster: 'nouveaute-burgundy-wave.jpg', alt: 'Lace body wave bordeaux en vidéo' },
-  { file: '07', poster: 'nouveaute-sculpted-bob.jpg', alt: 'Nouveau look Luciole en vidéo' },
-  { file: '08', poster: 'nouveaute-silky-chocolate.jpg', alt: 'Nouveau look Luciole en vidéo' },
-  { file: '09', poster: 'nouveaute-classic-bob.jpg', alt: 'Nouveau look Luciole en vidéo' },
-  { file: '10', poster: 'nouveaute-glam-wave.jpg', alt: 'Nouveau look Luciole en vidéo' },
-  { file: '11', poster: 'nouveaute-royal-curl.jpg', alt: 'Nouveau look Luciole en vidéo' }
+  { file: '01', productId: 38, poster: 'nouveaute-sculpted-bob.jpg', alt: 'Bob sculpté glamour noir en vidéo' },
+  { file: '02', productId: 39, poster: 'nouveaute-silky-chocolate.jpg', alt: 'Lace lisse chocolat extra longue en vidéo' },
+  { file: '03', productId: 40, poster: 'nouveaute-classic-bob.jpg', alt: 'Bob lisse classique noir en vidéo' },
+  { file: '04', productId: 41, poster: 'nouveaute-glam-wave.jpg', alt: 'Lace glamour ondulée noire en vidéo' },
+  { file: '05', productId: 42, poster: 'nouveaute-royal-curl.jpg', alt: 'Lace bouclée royale noire en vidéo' },
+  { file: '06', productId: 43, poster: 'nouveaute-burgundy-wave.jpg', alt: 'Lace body wave bordeaux en vidéo' },
+  { file: '07', productId: 38, poster: 'nouveaute-sculpted-bob.jpg', alt: 'Nouveau look Luciole en vidéo' },
+  { file: '08', productId: 39, poster: 'nouveaute-silky-chocolate.jpg', alt: 'Nouveau look Luciole en vidéo' },
+  { file: '09', productId: 40, poster: 'nouveaute-classic-bob.jpg', alt: 'Nouveau look Luciole en vidéo' },
+  { file: '10', productId: 41, poster: 'nouveaute-glam-wave.jpg', alt: 'Nouveau look Luciole en vidéo' },
+  { file: '11', productId: 42, poster: 'nouveaute-royal-curl.jpg', alt: 'Nouveau look Luciole en vidéo' }
 ];
 
 function addNewVideoLooks() {
@@ -1421,6 +1443,7 @@ function addNewVideoLooks() {
   const isEnglish = document.documentElement.lang === 'en';
   const videoLabel = isEnglish ? 'Watch the look' : 'Look en vidéo';
   const unsupportedMessage = isEnglish ? 'Your browser cannot play this video.' : 'Votre navigateur ne peut pas lire cette vidéo.';
+  const videoDetailsLabel = isEnglish ? 'View look details' : 'Voir la fiche du look';
 
   NEW_VIDEO_LOOKS.forEach((look, offset) => {
     const number = String(offset + 3).padStart(2, '0');
@@ -1441,6 +1464,7 @@ function addNewVideoLooks() {
             <p class="video-story-text">Fais de ta couronne une signature. Tu es déjà la lumière du plan.</p>
           </div>
           <div class="video-story-equalizer" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+          <button class="video-product-link" type="button" onclick="openProductModal(${look.productId})"><i class="fas fa-sparkles"></i> ${videoDetailsLabel}</button>
         </div>
       </article>`);
     dots.insertAdjacentHTML('beforeend', `<button type="button" data-video-dot="${offset + 2}" aria-label="Vidéo ${offset + 3}"></button>`);
@@ -1544,9 +1568,17 @@ function initVideoCarousel() {
     timer = window.setInterval(() => goTo(current + 1), 6500);
   }
 
-  previous?.addEventListener('click', () => { goTo(current - 1); startAuto(); });
-  next?.addEventListener('click', () => { goTo(current + 1); startAuto(); });
-  dots.forEach((dot, index) => dot.addEventListener('click', () => { goTo(index); startAuto(); }));
+  function playSlideClickEffect() {
+    if (reducedMotion) return;
+    viewport.classList.remove('is-clicking');
+    void viewport.offsetWidth;
+    viewport.classList.add('is-clicking');
+    window.setTimeout(() => viewport.classList.remove('is-clicking'), 720);
+  }
+
+  previous?.addEventListener('click', () => { goTo(current - 1); playSlideClickEffect(); startAuto(); });
+  next?.addEventListener('click', () => { goTo(current + 1); playSlideClickEffect(); startAuto(); });
+  dots.forEach((dot, index) => dot.addEventListener('click', () => { goTo(index); playSlideClickEffect(); startAuto(); }));
   viewport.addEventListener('mouseenter', stopAuto);
   viewport.addEventListener('mouseleave', startAuto);
   viewport.addEventListener('focusin', stopAuto);
@@ -1562,6 +1594,7 @@ function initVideoCarousel() {
     pointerStart = null;
     if (Math.abs(distance) < 45) return;
     goTo(distance < 0 ? current + 1 : current - 1);
+    playSlideClickEffect();
     startAuto();
   });
   viewport.addEventListener('pointercancel', () => { pointerStart = null; });

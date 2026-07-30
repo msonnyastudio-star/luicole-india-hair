@@ -73,7 +73,8 @@ function normalizeProduct(id, raw = {}) {
     lengths: Array.isArray(raw.lengths)
       ? raw.lengths.map((variant) => ({ length: String(variant.length || '').trim(), price: toNumber(variant.price) })).filter((variant) => variant.length)
       : [],
-    images: Array.isArray(raw.images) ? raw.images.map(String).filter(Boolean) : []
+    images: Array.isArray(raw.images) ? raw.images.map(String).filter(Boolean) : [],
+    videos: Array.isArray(raw.videos) ? raw.videos.map(String).filter(Boolean) : []
   };
 }
 
@@ -455,6 +456,7 @@ async function saveProduct() {
   if (!name) return alert('Le nom est obligatoire.');
   if (!lengths.length) return alert('Ajoutez au moins une taille / longueur.');
   const images = byId('pImages').value.split('\n').map((image) => image.trim()).filter(Boolean);
+  const videos = byId('pVideos').value.split('\n').map((video) => video.trim()).filter(Boolean);
   const promoPrice = toNumber(byId('pPromoPrice').value);
   const existing = products.find((item) => String(item.id) === String(id));
   const product = normalizeProduct(id, {
@@ -475,6 +477,7 @@ async function saveProduct() {
     badge: byId('pBadge').value || null,
     referencePrice: byId('pReferencePrice').value,
     images: images.length ? images : (existing?.images?.length ? existing.images : ['images/catalogue/modele-2.jpg']),
+    videos,
     promo: promoPrice > 0,
     promoPrice: promoPrice || null,
     published: byId('pPublished').checked
@@ -513,6 +516,7 @@ function editProduct(productId) {
   byId('pDescription').value = product.description || '';
   byId('pCare').value = product.care || '';
   byId('pImages').value = product.images.join('\n');
+  byId('pVideos').value = (product.videos || []).join('\n');
   byId('pAvailability').value = product.availability || 'Disponible';
   byId('pStock').value = product.stock ?? 0;
   byId('pPublished').checked = product.published !== false;
@@ -536,6 +540,7 @@ function resetForm() {
   byId('pCare').value = '';
   byId('pVariants').value = '';
   byId('pImages').value = '';
+  byId('pVideos').value = '';
   byId('pBadge').value = '';
   byId('pReferencePrice').value = '';
   byId('pPromoPrice').value = '';

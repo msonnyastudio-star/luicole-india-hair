@@ -1,5 +1,5 @@
 // Luciole India Hair - catalogue visuel
-const CATALOG_VERSION = '2026-07-30-nouveautes-v5';
+const CATALOG_VERSION = '2026-07-30-catalogue-video-v7';
 
 const CARE_BY_TEXTURE = {
   lisse: "Lavez délicatement avec un shampooing doux, hydratez les longueurs et protégez les cheveux avant toute source de chaleur.",
@@ -7,7 +7,7 @@ const CARE_BY_TEXTURE = {
   bouclé: "Humidifiez avant de démêler, appliquez un soin hydratant et ne brossez pas les boucles à sec afin de conserver leur définition."
 };
 
-function catalogueProduct({ id, name, texture, color, lengths, photo, description, badge = 'nouveau', category = 'Perruques lace frontal' }) {
+function catalogueProduct({ id, name, texture, color, lengths, photo, description, videos = [], badge = 'nouveau', category = 'Perruques lace frontal' }) {
   const isLaceStyle = /lace/i.test(category) || /^Lace/i.test(name);
   const normalizedLengths = lengths.map((length) => Number(length));
   const pricedLengths = normalizedLengths.map((length) => ({
@@ -33,9 +33,12 @@ function catalogueProduct({ id, name, texture, color, lengths, photo, descriptio
     care: CARE_BY_TEXTURE[texture],
     delivery: 'Livraison 24h à 72h (Douala/Yaoundé), 2 à 5 jours pour les autres villes',
     availability: 'En stock limité selon longueur — prix admin modifiable',
+    stock: 1,
+    published: true,
     badge,
     referencePrice,
     images: [photo],
+    videos: videos.map(String).filter(Boolean),
     promo: false,
     promoPrice: null
   };
@@ -76,7 +79,7 @@ const PRODUCTS = [
   catalogueProduct({ id: 4, name: 'Lace Lisse Extra Longue Noire', texture: 'lisse', color: 'noir naturel', lengths: [24, 26, 28, 30], photo: 'images/catalogue/modele-4.jpg', description: 'Lace lisse extra longue à raie centrale. La longueur et la brillance visuelle créent une allure très glamour.' }),
   catalogueProduct({ id: 5, name: 'Bob Lisse Raie Centrale', texture: 'lisse', color: 'noir naturel', lengths: [10, 12, 14], photo: 'images/catalogue/modele-5.jpg', description: 'Bob droit à raie centrale, avec une ligne de coupe nette au niveau des épaules. Adapté à un look chic et facile à porter.', category: 'Cheveux courts' }),
   catalogueProduct({ id: 6, name: 'Lace Lisse Bordeaux', texture: 'lisse', color: 'bordeaux', lengths: [16, 18, 20], photo: 'images/catalogue/modele-6.jpg', description: 'Modèle lisse bordeaux, de longueur moyenne, avec une raie centrale. Sa teinte chaleureuse met en valeur les looks colorés.' }),
-  catalogueProduct({ id: 7, name: 'Lace Deep Wave Noire', texture: 'bouclé', color: 'noir naturel', lengths: [20, 22, 24, 26, 28], photo: 'images/catalogue/modele-7.jpg', description: 'Longue lace à ondulations profondes et régulières. Le relief des vagues apporte un volume structuré et une finition glamour.' }),
+  catalogueProduct({ id: 7, name: 'Lace Deep Wave Noire', texture: 'bouclé', color: 'noir naturel', lengths: [20, 22, 24, 26, 28], photo: 'images/catalogue/modele-7.jpg', description: 'Longue lace à ondulations profondes et régulières. Le relief des vagues apporte un volume structuré et une finition glamour.', videos: ['media/luciole-promo-1.mp4'] }),
   catalogueProduct({ id: 8, name: 'Lace Boucles Définies Noire', texture: 'bouclé', color: 'noir naturel', lengths: [20, 22, 24, 26], photo: 'images/catalogue/modele-8.jpg', description: 'Lace longue à petites boucles très définies. Un modèle généreux pour une silhouette pleine de mouvement.' }),
   catalogueProduct({ id: 9, name: 'Bob Bouclé Volume', texture: 'bouclé', color: 'brun ou noir', lengths: [10, 12, 14], photo: 'images/catalogue/modele-9.jpg', description: 'Bob bouclé disponible dans un rendu brun ou noir selon le modèle. Les boucles souples donnent du volume sans longueur excessive.', category: 'Cheveux courts' }),
   catalogueProduct({ id: 10, name: 'Lace Boucles Miel', texture: 'bouclé', color: 'brun miel', lengths: [18, 20, 22, 24], photo: 'images/catalogue/modele-10.jpg', description: 'Boucles longues en brun miel lumineux. Ce modèle associe une texture dense à une couleur chaude et visible.' }),
@@ -86,7 +89,7 @@ const PRODUCTS = [
   catalogueProduct({ id: 14, name: 'Bob Lisse Noir Naturel', texture: 'lisse', color: 'noir naturel', lengths: [10, 12, 14], photo: 'images/catalogue/modele-14.jpg', description: 'Bob lisse noir à raie centrale, avec une coupe droite et épurée. Un classique polyvalent pour le bureau comme les sorties.', category: 'Cheveux courts' }),
   catalogueProduct({ id: 15, name: 'Lace Glamour Boucles Noires', texture: 'ondulé', color: 'noir naturel', lengths: [18, 20, 22, 24], photo: 'images/catalogue/modele-15.jpg', description: 'Longues boucles souples et brillantes pour un rendu glamour. Le volume est concentré sur les longueurs et les pointes.' }),
   catalogueProduct({ id: 16, name: 'Lace Ondulée Chocolat', texture: 'ondulé', color: 'brun chocolat', lengths: [20, 22, 24, 26], photo: 'images/catalogue/modele-16.jpg', description: 'Lace longue brun chocolat, avec des ondulations naturelles et une raie latérale. Elle apporte du mouvement tout en restant élégante.' }),
-  catalogueProduct({ id: 17, name: 'Lace Body Wave Chocolat', texture: 'ondulé', color: 'brun chocolat', lengths: [18, 20, 22, 24], photo: 'images/catalogue/modele-17.jpg', description: 'Modèle body wave brun chocolat aux vagues larges et rebondies. Parfait si vous recherchez un volume chic et maîtrisé.' }),
+  catalogueProduct({ id: 17, name: 'Lace Body Wave Chocolat', texture: 'ondulé', color: 'brun chocolat', lengths: [18, 20, 22, 24], photo: 'images/catalogue/modele-17.jpg', description: 'Modèle body wave brun chocolat aux vagues larges et rebondies. Parfait si vous recherchez un volume chic et maîtrisé.', videos: ['media/luciole-promo-2.mp4'] }),
   catalogueProduct({ id: 18, name: 'Coupe Courte Twist Bordeaux', texture: 'bouclé', color: 'bordeaux', lengths: [6, 8, 10], photo: 'images/catalogue/modele-18.jpg', description: 'Style court bordeaux à effet twist serré. Une coupe expressive, légère et facile à mettre en valeur.', category: 'Cheveux courts' }),
   catalogueProduct({ id: 19, name: 'Body Wave Chocolat Longue', texture: 'ondulé', color: 'brun chocolat', lengths: [24, 26, 28, 30], photo: 'images/catalogue/modele-19-recadre.webp', description: 'Très longue body wave couleur chocolat, avec une frange latérale et des boucles souples sur les longueurs. Une silhouette ultra féminine.' }),
   catalogueProduct({ id: 20, name: 'Lace Side Bang Body Wave', texture: 'ondulé', color: 'noir naturel', lengths: [20, 22, 24, 26], photo: 'images/catalogue/modele-21.jpg', description: 'Lace noire body wave avec frange latérale et mèches souples autour du visage. Le modèle combine élégance et mouvement.' }),
@@ -107,12 +110,12 @@ const PRODUCTS = [
   catalogueProduct({ id: 35, name: 'Collection Laces Bouclées Colorées', texture: 'bouclé', color: 'noir, brun et miel', lengths: [18, 20, 22, 24], photo: 'images/catalogue/modele-34-floute.webp', description: 'Sélection de laces bouclées disponibles dans plusieurs teintes visibles sur la photo : noir, brun et miel. Indiquez votre couleur préférée lors de la demande.' }),
   catalogueProduct({ id: 36, name: 'Lace Kinky Curly Noire', texture: 'bouclé', color: 'noir naturel', lengths: [20, 22, 24, 26], photo: 'images/catalogue/modele-35-floute.webp', description: 'Longue lace noire kinky curly, avec des boucles souples et une finition latérale naturelle.' }),
   catalogueProduct({ id: 37, name: 'Lace Body Wave Glamour Noire', texture: 'ondulé', color: 'noir naturel', lengths: [16, 18, 20, 22], photo: 'images/catalogue/modele-37-recadre.webp', description: 'Lace noire body wave aux boucles larges et polies. Sa longueur moyenne est idéale pour un look glamour structuré.' }),
-  catalogueProduct({ id: 38, name: 'Bob Sculpté Glamour Noir', texture: 'ondulé', color: 'noir naturel', lengths: [8, 10, 12], photo: 'images/catalogue/nouveaute-sculpted-bob.jpg', description: 'Bob noir sculpté avec une raie latérale profonde et un volume souple. Une coupe courte glamour, pensée pour une allure assurée.', category: 'Cheveux courts' }),
-  catalogueProduct({ id: 39, name: 'Lace Lisse Chocolat Extra Longue', texture: 'lisse', color: 'brun chocolat', lengths: [22, 24, 26, 28, 30], photo: 'images/catalogue/nouveaute-silky-chocolate.jpg', description: 'Lace lisse brun chocolat à raie centrale et longueurs fluides. Sa teinte lumineuse apporte une finition douce et élégante.' }),
-  catalogueProduct({ id: 40, name: 'Bob Lisse Classique Noir', texture: 'lisse', color: 'noir naturel', lengths: [8, 10, 12, 14], photo: 'images/catalogue/nouveaute-classic-bob.jpg', description: 'Bob noir lisse à la coupe droite, avec une finition nette et intemporelle. Il accompagne facilement les looks du quotidien comme les occasions.', category: 'Cheveux courts' }),
-  catalogueProduct({ id: 41, name: 'Lace Glam Wave Noire', texture: 'ondulé', color: 'noir naturel', lengths: [18, 20, 22, 24, 26], photo: 'images/catalogue/nouveaute-glam-wave.jpg', description: 'Lace noire aux larges ondulations glamour et au volume souple. Les longueurs brillantes encadrent le visage avec beaucoup de mouvement.' }),
-  catalogueProduct({ id: 42, name: 'Lace Royal Curls Noire', texture: 'bouclé', color: 'noir naturel', lengths: [18, 20, 22, 24, 26], photo: 'images/catalogue/nouveaute-royal-curl.jpg', description: 'Lace noire aux boucles riches et rebondies. Une texture généreuse pour créer un volume élégant et remarquable.' }),
-  catalogueProduct({ id: 43, name: 'Lace Body Wave Bordeaux', texture: 'ondulé', color: 'bordeaux', lengths: [18, 20, 22, 24], photo: 'images/catalogue/nouveaute-burgundy-wave.jpg', description: 'Lace bordeaux aux ondulations souples et lumineuses. Une couleur profonde pour une transformation chic, féminine et pleine de caractère.' })
+  catalogueProduct({ id: 38, name: 'Bob Sculpté Glamour Noir', texture: 'ondulé', color: 'noir naturel', lengths: [8, 10, 12], photo: 'images/catalogue/nouveaute-sculpted-bob.jpg', description: 'Bob noir sculpté avec une raie latérale profonde et un volume souple. Une coupe courte glamour, pensée pour une allure assurée.', videos: ['media/luciole-look-01.mp4', 'media/luciole-look-07.mp4'], category: 'Cheveux courts' }),
+  catalogueProduct({ id: 39, name: 'Lace Lisse Chocolat Extra Longue', texture: 'lisse', color: 'brun chocolat', lengths: [22, 24, 26, 28, 30], photo: 'images/catalogue/nouveaute-silky-chocolate.jpg', description: 'Lace lisse brun chocolat à raie centrale et longueurs fluides. Sa teinte lumineuse apporte une finition douce et élégante.', videos: ['media/luciole-look-02.mp4', 'media/luciole-look-08.mp4'] }),
+  catalogueProduct({ id: 40, name: 'Bob Lisse Classique Noir', texture: 'lisse', color: 'noir naturel', lengths: [8, 10, 12, 14], photo: 'images/catalogue/nouveaute-classic-bob.jpg', description: 'Bob noir lisse à la coupe droite, avec une finition nette et intemporelle. Il accompagne facilement les looks du quotidien comme les occasions.', videos: ['media/luciole-look-03.mp4', 'media/luciole-look-09.mp4'], category: 'Cheveux courts' }),
+  catalogueProduct({ id: 41, name: 'Lace Glam Wave Noire', texture: 'ondulé', color: 'noir naturel', lengths: [18, 20, 22, 24, 26], photo: 'images/catalogue/nouveaute-glam-wave.jpg', description: 'Lace noire aux larges ondulations glamour et au volume souple. Les longueurs brillantes encadrent le visage avec beaucoup de mouvement.', videos: ['media/luciole-look-04.mp4', 'media/luciole-look-10.mp4'] }),
+  catalogueProduct({ id: 42, name: 'Lace Royal Curls Noire', texture: 'bouclé', color: 'noir naturel', lengths: [18, 20, 22, 24, 26], photo: 'images/catalogue/nouveaute-royal-curl.jpg', description: 'Lace noire aux boucles riches et rebondies. Une texture généreuse pour créer un volume élégant et remarquable.', videos: ['media/luciole-look-05.mp4', 'media/luciole-look-11.mp4'] }),
+  catalogueProduct({ id: 43, name: 'Lace Body Wave Bordeaux', texture: 'ondulé', color: 'bordeaux', lengths: [18, 20, 22, 24], photo: 'images/catalogue/nouveaute-burgundy-wave.jpg', description: 'Lace bordeaux aux ondulations souples et lumineuses. Une couleur profonde pour une transformation chic, féminine et pleine de caractère.', videos: ['media/luciole-look-06.mp4'] })
 ];
 
 const CATEGORIES = [

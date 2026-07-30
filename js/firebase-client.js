@@ -676,7 +676,8 @@ function normalizeProduct(snapshot) {
           price: Math.max(0, Number(variant.price) || 0)
         })).filter((variant) => variant.length)
       : [],
-    images: Array.isArray(raw.images) ? raw.images.filter(Boolean) : []
+    images: Array.isArray(raw.images) ? raw.images.filter(Boolean) : [],
+    videos: Array.isArray(raw.videos) ? raw.videos.map(String).filter(Boolean) : []
   };
 }
 

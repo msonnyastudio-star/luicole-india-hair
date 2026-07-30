@@ -713,6 +713,25 @@ section {
   transition: var(--transition);
 }
 
+.product-video-badge {
+  position: absolute;
+  right: 11px;
+  bottom: 11px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 9px;
+  border: 1px solid rgba(255,255,255,.55);
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(42, 24, 60, .76);
+  box-shadow: 0 5px 14px rgba(0,0,0,.18);
+  font-size: .66rem;
+  font-weight: 800;
+}
+.product-video-badge i { color: #ffcf6e; font-size: .58rem; }
+
 .product-card:hover .product-image img {
   transform: scale(1.08);
 }
@@ -889,6 +908,12 @@ section {
 .modal-thumbs img:hover {
   border-color: var(--gold);
 }
+
+.modal-video-gallery { margin-top: 16px; }
+.modal-video-gallery > p { margin: 0 0 9px; color: #5b3a65; font-size: .79rem; font-weight: 800; }
+.modal-video-gallery > p i { margin-right: 5px; color: #a14e82; }
+.modal-video-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 9px; }
+.modal-video-list video { width: 100%; min-height: 145px; border-radius: 10px; background: #17131b; object-fit: cover; }
 
 .modal-details {
   padding: 30px;
@@ -2971,8 +2996,28 @@ h2.welcome-title { font-family: var(--font-heading); font-size: 1.45rem; color: 
 .video-showcase .btn-primary:hover { background: #ff2e70; border-color: #ff2e70; }
 
 .video-carousel { position: relative; padding: 0 56px; }
-.video-carousel-viewport { overflow: hidden; border-radius: 24px; outline: none; }
+.video-carousel-viewport { position: relative; overflow: hidden; border-radius: 24px; outline: none; }
 .video-carousel-viewport:focus-visible { box-shadow: 0 0 0 4px rgba(255, 216, 110, 0.65); }
+.video-carousel-viewport::after {
+  content: '✦  ✧  ✦';
+  position: absolute;
+  z-index: 5;
+  top: 50%;
+  left: 50%;
+  pointer-events: none;
+  color: #fff0b7;
+  font: 800 clamp(1.2rem, 3vw, 2rem)/1 "Montserrat", sans-serif;
+  letter-spacing: .26em;
+  opacity: 0;
+  text-shadow: 0 0 24px #ff71a7, 0 0 42px #9ceaff;
+  transform: translate(-50%, -50%) scale(.3) rotate(-12deg);
+}
+.video-carousel-viewport.is-clicking::after { animation: feminine-video-bloom .72s cubic-bezier(.2,.8,.25,1) both; }
+@keyframes feminine-video-bloom {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.3) rotate(-12deg); }
+  38% { opacity: 1; transform: translate(-50%, -50%) scale(1.16) rotate(5deg); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.65) rotate(12deg); }
+}
 .video-carousel-track { display: flex; transition: transform 560ms cubic-bezier(.2,.8,.2,1); will-change: transform; }
 
 .video-promo-card {
@@ -3051,6 +3096,8 @@ h2.welcome-title { font-family: var(--font-heading); font-size: 1.45rem; color: 
 .video-story-equalizer i:nth-child(5) { height: 8px; animation-delay: -.8s; }
 @keyframes video-pulse { 50% { opacity: .3; transform: scale(.7); } }
 @keyframes video-eq { to { height: 3px; } }
+.video-product-link { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; margin-top: 22px; padding: 9px 13px; border: 1px solid rgba(255,255,255,.32); border-radius: 999px; color: #fff; background: rgba(255,255,255,.1); font: inherit; font-size: .77rem; font-weight: 800; transition: var(--transition); }
+.video-product-link:hover { border-color: #ffcae1; color: #fff0b7; background: rgba(255,103,157,.24); transform: translateY(-2px); }
 
 .video-carousel-btn {
   position: absolute;
@@ -3273,4 +3320,5 @@ h2.welcome-title { font-family: var(--font-heading); font-size: 1.45rem; color: 
 
 @media (prefers-reduced-motion: reduce) {
   .video-carousel-track { transition: none; }
+  .video-carousel-viewport.is-clicking::after { animation: none; }
 }
