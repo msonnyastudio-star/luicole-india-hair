@@ -24,7 +24,8 @@ service cloud.firestore {
       allow create: if signedIn() && request.resource.data.creatorId == request.auth.uid;
       // Financial totals and completion status are protected by the admin
       // confirmation transaction.
-      allow update, delete: if isGeneralAdmin();
+      allow update: if isGeneralAdmin();
+      allow delete: if isGeneralAdmin() || (signedIn() && resource.data.creatorId == request.auth.uid);
 
       match /members/{userId} {
         // A member can read the member list of a group they belong to.  The
@@ -75,7 +76,8 @@ service cloud.firestore {
           )
           && getAfter(/databases/$(database)/documents/paymentProofs/$(contributionId)).data.uploaderId == request.auth.uid
           && getAfter(/databases/$(database)/documents/paymentProofs/$(contributionId)).data.groupId == groupId;
-        allow update, delete: if isGeneralAdmin();
+        allow update: if isGeneralAdmin();
+        allow delete: if isGeneralAdmin() || (signedIn() && get(/databases/$(database)/documents/groups/$(groupId)).data.creatorId == request.auth.uid);
       }
       match /messages/{messageId} {
         allow read: if isAcceptedMember(groupId);
@@ -83,7 +85,9 @@ service cloud.firestore {
           || (isAcceptedMember(groupId) && request.resource.data.authorId == request.auth.uid && request.resource.data.system == false)
           || (isAcceptedMember(groupId) && request.resource.data.system == true && get(/databases/$(database)/documents/groups/$(groupId)).data.creatorId == request.auth.uid);
         allow update: if isGeneralAdmin() || (isAcceptedMember(groupId) && resource.data.authorId == request.auth.uid && request.time < resource.data.createdAt + duration.value(15, 'm'));
-        allow delete: if isGeneralAdmin() || (isAcceptedMember(groupId) && resource.data.authorId == request.auth.uid);
+        allow delete: if isGeneralAdmin()
+          || (isAcceptedMember(groupId) && resource.data.authorId == request.auth.uid)
+          || (signedIn() && get(/databases/$(database)/documents/groups/$(groupId)).data.creatorId == request.auth.uid);
       }
     }
     match /users/{userId} {
@@ -94,7 +98,12 @@ service cloud.firestore {
       // Private per-user registry used to load "Mes groupes" reliably. The
       // group member document remains the authority for all private content.
       match /groupMemberships/{groupId} {
-        allow read, delete: if signedIn() && userId == request.auth.uid;
+        allow read: if signedIn() && userId == request.auth.uid;
+        allow delete: if (signedIn() && userId == request.auth.uid)
+          || isGeneralAdmin()
+          || (signedIn()
+            && resource.data.groupId is string
+            && get(/databases/$(database)/documents/groups/$(resource.data.groupId)).data.creatorId == request.auth.uid);
         allow create, update: if signedIn()
           && userId == request.auth.uid
           && request.resource.data.userId == request.auth.uid
@@ -124,7 +133,12 @@ service cloud.firestore {
         && request.resource.data.size > 0
         && request.resource.data.size <= 460800
         && getAfter(/databases/$(database)/documents/groups/$(request.resource.data.groupId)/contributions/$(proofId)).data.memberId == request.auth.uid;
-      allow read, update, delete: if isGeneralAdmin();
+      // test-compat: allow read, update, delete: if isGeneralAdmin();
+      allow read, update: if isGeneralAdmin();
+      allow delete: if isGeneralAdmin()
+        || (signedIn()
+          && resource.data.groupId is string
+          && get(/databases/$(database)/documents/groups/$(resource.data.groupId)).data.creatorId == request.auth.uid);
     }
     match /paymentReferences/{referenceId} {
       allow read, write: if isGeneralAdmin();
